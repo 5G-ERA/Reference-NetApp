@@ -1,45 +1,36 @@
 # Test robot_logic - robot_ml_control_services_client - ml_control_services
 
+Following guide assumes that middleware is successfully instaled and running (for more information about middleware deployment see this [repository ](https://github.com/5G-ERA/middleware)). Besides, the [era_5g_action_server](https://github.com/5G-ERA/middleware-actionserver) has to be installed as well.
+
 Instalation (ROS2 Galactic), building
 ```console
 cd Reference-NetApp
 colcon build
 ```
-First terminal (same dir), fisrt robot (robot_logic):
+First terminal (same dir), robot_logic:
 ```console
 source install/setup.sh
 ros2 run era_5g_robot robot_node
 ```
-Second terminal (same dir), second robot (robot_logic_2):
-```console
-source install/setup.sh
-ros2 run era_5g_robot robot_node -n robot_logic_2
-```
-Third terminal (same dir), era_5g_action_server:
+Second terminal (same dir), era_5g_action_server:
 ```console
 source install/setup.sh
 ros2 run era_5g_action_server ActionServerNode
 ```
-Fourth terminal (same dir), commands to robots:
+Third terminal (same dir), commands to robots:
 ```console
 source install/setup.sh
 ```
-External command to the first robot (robot_logic - start_service) that the robot_ml_control_services_client send a ml_control_services request with the base name "ml_control_services" with a request to assign topic names and start the service (ml_service_start).
+External command to the robot (robot_logic - start_service) that the robot_ml_control_services_client send a ml_control_services request with the base name "ml_control_services" with a request to assign topic names and start the service (ml_service_start).
 ```console
 ros2 service call robot_logic/start_service era_5g_robot_interfaces/srv/StartService "{service_base_name: GUID_OF_THE_TASK}"
 ```
-External command to the second robot (robot_logic_2 - start_service) that the robot_ml_control_services_client send a ml_control_services request with the base name "ml_control_services" with a request to assign topic names and start the service (ml_service_start).
-```console
-ros2 service call robot_logic_2/start_service era_5g_robot_interfaces/srv/StartService "{service_base_name: GUID_OF_THE_TASK}"
-```
-External command to the first robot (robot_logic - stop_service) that robot_ml_control_services_client send a ml_control_services request to stop the service (ml_service_stop).
+
+External command to the robot (robot_logic - stop_service) that robot_ml_control_services_client send a ml_control_services request to stop the service (ml_service_stop).
 ```console
 ros2 service call robot_logic/stop_service era_5g_robot_interfaces/srv/StopService
 ```
-External command to the second robot (robot_logic_2 - stop_service) that robot_ml_control_services_client send a ml_control_services request to stop the service (ml_service_stop).
-```console
-ros2 service call robot_logic_2/stop_service era_5g_robot_interfaces/srv/StopService
-```
+
 
 ## Step-by-step Integration of era_5g_action_client
 
