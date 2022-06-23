@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ros-css-deployment
+  labels:
+    app: ros-css
+  annotations:
+    k8s.v1.cni.cncf.io/networks: ros-network
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ros-css
+  template:
+    metadata:
+      labels:
+        app: ros-css
+      annotations:
+        k8s.v1.cni.cncf.io/networks: ros-network
+    spec:
+      containers:
+      - name: css
+        image: but5gera/ros-ml_service-standalone:latest
+        imagePullPolicy: Always
+        resources: {}
+        env:
+        - name: NETAPP_MODEL_VARIANT
+          value: yolov3_mobilenet
+        - name: NETAPP_TORCH_DEVICE
+          value: cpu
+      hostNetwork: true

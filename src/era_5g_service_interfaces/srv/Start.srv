@@ -1,0 +1,8 @@
+string robot_worker_setting
+---
+bool success
+string message
+string task_id
+string data_topic
+string result_topic
+string worker_constraints

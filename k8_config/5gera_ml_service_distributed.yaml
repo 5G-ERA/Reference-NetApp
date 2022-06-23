@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-worker-deployment
+  labels:
+    app: ml-worker
+  annotations:
+    k8s.v1.cni.cncf.io/networks: ros-network
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-worker
+  template:
+    metadata:
+      labels:
+        app: ml-worker
+      annotations:
+        k8s.v1.cni.cncf.io/networks: ros-network
+    spec:
+      hostname: celery
+      containers:
+      - name: ml-worker
+        image: but5gera/ros-ml_service-distributed_worker:latest
+        imagePullPolicy: Always
+        resources: {}
+        env:
+        - name: CELERY_BROKER_URL
+          value: "amqp://guest:guest@localhost:5672"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://localhost/"
+        - name: NETAPP_MODEL_VARIANT
+          value: yolov3_mobilenet
+        - name: NETAPP_TORCH_DEVICE
+          value: cpu
+      hostNetwork: true
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distributed-css-deployment
+  labels:
+    app: distributed-css
+  annotations:
+    k8s.v1.cni.cncf.io/networks: ros-network
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: distributed-css
+  template:
+    metadata:
+      labels:
+        app: distributed-css
+      annotations:
+        k8s.v1.cni.cncf.io/networks: ros-network
+    spec:
+      containers:
+      - name: distributed-css
+        image: but5gera/ros-ml_service-distributed_interface:latest
+        imagePullPolicy: Always
+        resources: {}
+        env:
+        - name: CELERY_BROKER_URL
+          value: "amqp://guest:guest@localhost:5672"
+        - name: CELERY_RESULT_BACKEND
+          value: "redis://localhost/"
+      hostNetwork: true
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbit-deployment
+  labels:
+    app: rabbit
+  annotations:
+    k8s.v1.cni.cncf.io/networks: ros-network
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbit
+  template:
+    metadata:
+      labels:
+        app: rabbit
+      annotations:
+        k8s.v1.cni.cncf.io/networks: ros-network
+    spec:
+      hostname: rabbit
+      containers:
+      - name: rabbit
+        image: rabbitmq:latest
+        imagePullPolicy: IfNotPresent
+        resources: {}
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: guest
+        - name: RABBITMQ_DEFAULT_PASS
+          value: guest
+        ports:
+        - containerPort: 5672
+      hostNetwork: true
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+spec:
+  ports:
+  - port: 5672
+  selector:
+    app: rabbit
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  labels:
+    app: redis   
+  annotations:
+    k8s.v1.cni.cncf.io/networks: ros-network
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis   
+  template:
+    metadata:
+      labels:
+        app: redis   
+      annotations:
+        k8s.v1.cni.cncf.io/networks: ros-network
+    spec:
+      hostname: redis
+      containers:
+      - name: redis   
+        image: redis:latest
+        imagePullPolicy: IfNotPresent
+        resources: {}
+        ports:
+        - containerPort: 6379
+      hostNetwork: true
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  ports:
+  - name: htto
+    port: 6379
+  selector:
+    app: redis

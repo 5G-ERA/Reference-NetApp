@@ -1,0 +1,9 @@
+FROM but5gera/ros-ml_service-distributed_interface
+
+COPY ./docker/run_worker.sh /root/run_worker.sh
+
+ENV ROS2_5G_ERA_ASSETS_PATH=/root/assets
+
+ENV C_FORCE_ROOT=1
+
+CMD ["/bin/bash", "/root/run_worker.sh"]
