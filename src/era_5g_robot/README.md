@@ -1,8 +1,8 @@
 # Test robot_logic - robot_ml_control_services_client - ml_control_services
 
-Following guide assumes that middleware is successfully instaled and running (for more information about middleware deployment see this [repository ](https://github.com/5G-ERA/middleware)). Besides, the [era_5g_action_server](https://github.com/5G-ERA/middleware-actionserver) has to be installed as well.
+Following guide assumes that middleware is successfully installed and running (for more information about middleware deployment see this [repository ](https://github.com/5G-ERA/middleware)). Besides, the [era_5g_action_server](https://github.com/5G-ERA/middleware-actionserver) has to be installed as well.
 
-Instalation (ROS2 Galactic), building
+Installation (ROS2 Galactic), building
 ```console
 cd Reference-NetApp
 colcon build
@@ -21,7 +21,7 @@ Third terminal (same dir), commands to robots:
 ```console
 source install/setup.sh
 ```
-External command to the robot (robot_logic - start_service) that the robot_ml_control_services_client send a ml_control_services request with the base name "ml_control_services" with a request to assign topic names and start the service (ml_service_start).
+External command to the robot (robot_logic - start_service) that the robot_ml_control_services_client send a ml_control_services request with the base name "GUID_OF_THE_TASK" with a request to assign topic names and start the service (ml_service_start).
 ```console
 ros2 service call robot_logic/start_service era_5g_robot_interfaces/srv/StartService "{service_base_name: GUID_OF_THE_TASK}"
 ```
@@ -101,8 +101,114 @@ def feedback_callback(self, feedback_msg): # Obtaining the feedback from the Act
 
 ## Step-by-step Integration of robot_ml_control_services_client
 
-1. TODO
+The reference implementation/integration of ``robot_ml_control_services_client`` (``RobotMLControlServicesClient`` class)is 
+available in this ([repository](https://github.com/5G-ERA/Reference-NetApp/blob/master/src/era_5g_robot/era_5g_robot/robot_node.py)). 
+The implementation of the RobotMLControlServicesClient class is in the same source code as the RobotLogic class, which 
+is used to demonstrate robot logic, but these classes can be in separate packages.
 
-## Step-by-step Integration of heartbeat functionality
+1. Let's have these 3 variables in the ``RobotLogic`` node:
 
-1. TODO
+```python
+class RobotLogic(Node):
+    """
+    RobotLogic class, which is a subclass of the Node class.
+    The node represents the logic of the robot.
+    """
+
+    def __init__(self, node_name: str = 'robot_logic'):
+        """
+        Class constructor to set up the node.
+        """
+        super().__init__(node_name)
+        self.robot_ml_control_services_client = None # An instance of the RobotMLControlServicesClient class
+        self.publisher = None # data_topic from the ML Control Service
+        self.subscription = None # result_topic from the ML Control Service
+```
+
+2. If the ``RobotLogic`` somewhere in its code wants to connect to ML Control Services using 
+the ``RobotMLControlServicesClient`` class and start it, it can proceed as follows:
+
+```python
+if not self.robot_ml_control_services_client:
+    # Try to create the RobotMLControlServicesClient node.
+    try:
+        # This should be obtained from the Middleware
+        ml_service_base_name_and_guid_of_the_task = 'ML_SERVICE_BASE_NAME'+ "_" +'GUID_OF_THE_TASK'
+        self.robot_ml_control_services_client = RobotMLControlServicesClient(ml_service_base_name_and_guid_of_the_task)
+        self.executor.add_node(self.robot_ml_control_services_client)
+        response.message = 'Robot Service Client successfully created and connected with 5G-ERA ML Control Services (' + ml_service_base_name_and_guid_of_the_task + '). '
+    except ValueError as e:
+        response.success = False
+        response.message = str(e)
+        return response
+
+if self.robot_ml_control_services_client and not self.robot_ml_control_services_client.service_is_running():
+    # Call start service.
+    if self.robot_ml_control_services_client.send_start_request():
+        response.success = True
+        response.message += 'Robot Service Client successfully sent "Start" request to 5G-ERA ML Control Services'
+    else:
+        response.success = False
+        response.message += '5G-ERA ML Control Service "Start" is not available'
+else:
+    response.success = False
+    response.message = '5G-ERA ML Control Services are already in a running state'
+return response
+```
+
+3. To stop the ML Service, it can proceed, for example, as follows:
+
+```python
+if not self.robot_ml_control_services_client:
+    response.success = False
+    response.message = 'Robot Service Client has not been created yet'
+    return response
+
+if self.robot_ml_control_services_client and self.robot_ml_control_services_client.service_is_running():
+    # Call stop service.
+    if self.robot_ml_control_services_client.send_stop_request():
+        response.success = True
+        response.message = 'Robot Service Client successfully sent "Stop" request to 5G-ERA ML Control Services'
+    else:
+        response.success = False
+        response.message = '5G-ERA ML Control Service "Stop" is not available'
+else:
+    response.success = False
+    response.message = '5G-ERA ML Control Services is not in running state'
+return response
+```
+
+4. If an instance of ``MLControlServicesClient`` class is already created and the ML Service is running, 
+the robot can, for example, send images and receive the results in this way:
+
+```python
+if not self.publisher and not self.subscription:
+    # Try to get created topic name.
+    if self.robot_ml_control_services_client:
+        data_topic, result_topic = self.robot_ml_control_services_client.get_topic_names()
+        if data_topic and result_topic:
+            # Create image publisher with a given topic name.
+            self.subscription = self.create_subscription(String, result_topic, self.result_callback, 10)
+            self.publisher = self.create_publisher(Image, data_topic, 100)
+            self.get_logger().info('Publisher on topic "%s" and subscription on topic "%s" created' % (
+                data_topic, result_topic))
+else:
+    if self.robot_ml_control_services_client and not self.robot_ml_control_services_client.service_is_running():
+        self.get_logger().info('Publisher on topic "%s" and subscription on topic "%s" destroyed' % (
+            self.publisher.topic_name, self.subscription.topic_name))
+        self.destroy_subscription(self.subscription)
+        self.subscription = None
+        self.destroy_publisher(self.publisher)
+        self.publisher = None
+    else:
+        # Publish an image message.
+        self.publisher.publish(image_message)
+
+        # Display the message on the console.
+        self.get_logger().info('Publishing image %s' % image_message.header.frame_id)
+```
+The heartbeat functionality is provided by ``services_are_alive`` and ``service_is_running`` functions 
+of ``MLControlServicesClient`` class. If the function ``services_are_alive`` detects that a heartbeat message 
+from ML Control Service has not arrived for more than 2 seconds or the ML Control Service "Start" or "Stop" 
+is not available, it cancels any requests to the ML Control Service. The ``service_is_running`` function first 
+checks the heartbeat (calls ``services_are_alive`` function), and then returns True if the ML Service is in running state.

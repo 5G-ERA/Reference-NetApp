@@ -10,6 +10,7 @@ import json
 import cv2  # OpenCV library.
 import os
 import numpy as np
+
 if os.name != 'nt':
     from cv_bridge import CvBridge  # Package to convert between ROS and OpenCV Images.
 
@@ -35,8 +36,7 @@ from era_5g_action_interfaces.action import Goal5g
 from threading import Event
 from rclpy.callback_groups import ReentrantCallbackGroup
 
-import ast 
-
+import ast
 
 path_to_assets = get_path_to_assets()
 
@@ -84,8 +84,6 @@ class RobotMLControlServicesClient(Node):
         self.stop_service_client = self.create_client(Stop, service_base_name + '/stop')
         self.get_logger().info(service_base_name + '/stop client created')
 
-        
-
         # Wait for the services' connection.
         attempts = 0
         while attempts < 5 and not self.start_service_client.wait_for_service(timeout_sec=1.0):
@@ -104,8 +102,9 @@ class RobotMLControlServicesClient(Node):
             raise ValueError(
                 '5G-ERA ML Control Service "Stop" with base name "' + service_base_name + '" is not available')
         self.get_logger().info(service_base_name + '/stop client connected')
-        
-        self.heart_beat_subscription = self.create_subscription(String, service_base_name + "/heart_beat", self.heart_beat_callback, 10)
+
+        self.heart_beat_subscription = self.create_subscription(String, service_base_name + "/heart_beat",
+                                                                self.heart_beat_callback, 10)
         self.last_heart_beat_timestamp = time.time()
 
         # Future and response variables.
@@ -227,6 +226,7 @@ class RobotMLControlServicesClient(Node):
     def service_is_running(self) -> bool:
         """
         Is the 5G-ERA ML Control Service in running state?
+        Call also heartbeat detection function.
 
         :return: True if the service is running, otherwise returns False.
         """
@@ -238,8 +238,15 @@ class RobotMLControlServicesClient(Node):
             return False
 
     def services_are_alive(self):
+        """
+        Are the 5G-ERA ML Control Service alive? Heartbeat functionality.
+        If it detects that a heartbeat message has not arrived for more than 2 seconds or the ML Control
+        Service "Start" or "Stop" is not available, it cancels any requests to the ML Control Service.
+        :return:
+        """
         if time.time() > self.last_heart_beat_timestamp + 2:
-            self.get_logger().info('5G-ERA ML Control Services did not publish to "heart beat" topic for more than 2 seconds')
+            self.get_logger().info(
+                '5G-ERA ML Control Services did not publish to "heart beat" topic for more than 2 seconds')
             self.cancel_requests()
             self.delete_old_responses()
             return False
@@ -284,26 +291,24 @@ class RobotLogic(Node):
         Class constructor to set up the node.
         """
         super().__init__(node_name)
-        self.robot_ml_control_services_client = None
-        self.publisher = None
-        self.subscription = None
+        self.robot_ml_control_services_client = None # An instance of the RobotMLControlServicesClient class
+        self.publisher = None # data_topic from the ML Control Service
+        self.subscription = None # result_topic from the ML Control Service
 
+        self.resourceStatus = None  # indicates the current status of the deployed service
+        self.service_id = None  # GUID of the control service
+        self.task_id = None  # set using the Start service
+        self.css_node_name = "/ml_control_services"  # TODO: should be obtained from the MW (?)
+        self.css_deployed_event = Event()  # marks that that CSS was deployed (does not have to be deployed successfully)
 
-        self.resourceStatus = None # indicates the current status of the deployed service
-        self.service_id = None # GUID of the control service 
-        self.task_id = None # set using the Start service
-        self.css_node_name = "/ml_control_services" # TODO: should be obtained from the MW (?)
-        self.css_deployed_event = Event() # marks that that CSS was deployed (does not have to be deployed successfully)
-        
-
-        self.callback_group = ReentrantCallbackGroup() # needed to be able to process ActionServer5G feedback when start_service_callback is active
+        self.callback_group = ReentrantCallbackGroup()  # needed to be able to process ActionServer5G feedback when start_service_callback is active
         # Create services for middleware communication.
         self.start_service = self.create_service(StartService, node_name + '/start_service',
-                                                 self.start_service_callback, 
+                                                 self.start_service_callback,
                                                  callback_group=self.callback_group)
         self.get_logger().info(node_name + '/start_service is running')
-        self.stop_service = self.create_service(StopService, node_name + '/stop_service', self.stop_service_callback, 
-                                                 callback_group=self.callback_group)
+        self.stop_service = self.create_service(StopService, node_name + '/stop_service', self.stop_service_callback,
+                                                callback_group=self.callback_group)
         self.get_logger().info(node_name + '/stop_service is running')
 
         # Create the timer.
@@ -330,65 +335,69 @@ class RobotLogic(Node):
         self.frame_id = 0
 
         # Connect to the ActionServer5G
-        self._action_client  = ActionClient(self, Goal5g, 'goal_5g', callback_group=self.callback_group)  # instantiate a new client for the ActionServer5G
+        self._action_client = ActionClient(self, Goal5g, 'goal_5g',
+                                           callback_group=self.callback_group)  # instantiate a new client for the ActionServer5G
         self.get_logger().info("Waiting for ActionServer5G")
         if not self._action_client.wait_for_server(15):
             raise ValueError(
                 'ActionServer5G is not available')
         self.get_logger().info("Connected to ActionServer5G")
-        
 
         # Used to convert between ROS and OpenCV images.
         if os.name != 'nt':
             self.br = CvBridge()
         self.get_logger().info(node_name + ' node is running')
-    
-    def goal_response_callback(self, future): # Method to handle what to do after goal was either rejected or accepted by ActionServer5G.
+
+    def goal_response_callback(self,
+                               future):  # Method to handle what to do after goal was either rejected or accepted by ActionServer5G.
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().info('Goal rejected!')
             self.css_deployed_event.set()
             return
 
-
         self.get_logger().info('Goal accepted! ')
         self._get_result_future = goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.get_result_callback)
 
-    def get_result_callback(self, future): # Method to handle what to do after receiving the action result
+    def get_result_callback(self, future):  # Method to handle what to do after receiving the action result
         result = future.result().result
         self.css_deployed_event.set()
         self.get_logger().info('Result: {0}'.format(result.result))
 
-    def feedback_callback(self, feedback_msg): # Obtaining the feedback from the ActionServer5G
-        
-        feedback = feedback_msg.feedback
-        resource_status = ast.literal_eval(feedback.feedback_resources_status) # get resource feedback for specific action id
+    def feedback_callback(self, feedback_msg):  # Obtaining the feedback from the ActionServer5G
 
-        self.resourceStatus = resource_status["ActionSequence"][0]["Services"][0]["ServiceStatus"] # Obtain service status for our deplyoed service
-        
+        feedback = feedback_msg.feedback
+        resource_status = ast.literal_eval(
+            feedback.feedback_resources_status)  # get resource feedback for specific action id
+
+        self.resourceStatus = resource_status["ActionSequence"][0]["Services"][0][
+            "ServiceStatus"]  # Obtain service status for our deplyoed service
+
         if self.resourceStatus == "Active":
-            service_id = resource_status["ActionSequence"][0]["Services"][0]["ServiceInstanceId"] # obtain the ID of the service
+            service_id = resource_status["ActionSequence"][0]["Services"][0][
+                "ServiceInstanceId"]  # obtain the ID of the service
             self.service_id = service_id.replace("-", "_")
             self.get_logger().info('Service id: ' + str(self.service_id))
             self.css_deployed_event.set()
-        #self.get_logger().info('Received feedback: {0}'.format(resource_status))
+        # self.get_logger().info('Received feedback: {0}'.format(resource_status))
         self.get_logger().info('Resource status: ' + str(self.resourceStatus))
 
-    def cancel_callback(self,goal_handle):
+    def cancel_callback(self, goal_handle):
         self.get_logger().info("Canceling goal...")
         self.css_deployed_event.set()
 
-    def send_action_server_goal(self, action_reference: int) -> None: 
+    def send_action_server_goal(self, action_reference: int) -> None:
         """
         Creates a goal with specified action_reference and sends it to the ActionServer5G
 
         :param action_reference: 0 for deploying the service, -1 for removing the service
         """
         goal_msg = Goal5g.Goal()
-        goal_msg.goal_taskid = self.task_id #task id
-        goal_msg.action_reference = action_reference # Action reference
-        self.get_logger().info(f"Connecting to ActionServer5G to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
+        goal_msg.goal_taskid = self.task_id  # task id
+        goal_msg.action_reference = action_reference  # Action reference
+        self.get_logger().info(
+            f"Connecting to ActionServer5G to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
         if not self._action_client.wait_for_server(15):
             raise ValueError('ActionServer5G is not available')
         self.get_logger().info("Connected, trying to deploy service")
@@ -404,14 +413,14 @@ class RobotLogic(Node):
         :param response: StartService Response.
         :return: StartService Response.
         """
-        self.task_id = request.service_base_name # TODO: rename this field in the action description
-        self.css_deployed_event.clear() # clears any previous set of the event
-        self.send_action_server_goal(0) # deploys the service
+        self.task_id = request.service_base_name  # TODO: rename this field in the action description
+        self.css_deployed_event.clear()  # clears any previous set of the event
+        self.send_action_server_goal(0)  # deploys the service
         self.get_logger().info("Waiting for service to be deployed")
-        self.css_deployed_event.wait() # waits until the service is deployed or the goal is rejected
+        self.css_deployed_event.wait()  # waits until the service is deployed or the goal is rejected
         self.get_logger().info("Service deployed")
 
-        if self.resourceStatus != "Active": # if the deployment process failed, return false
+        if self.resourceStatus != "Active":  # if the deployment process failed, return false
             response.message = "Failed to deploy service."
             response.success = False
             return response
@@ -419,7 +428,8 @@ class RobotLogic(Node):
         if not self.robot_ml_control_services_client:
             # Try to create the RobotMLControlServicesClient node.
             try:
-                self.robot_ml_control_services_client = RobotMLControlServicesClient(self.css_node_name + "_" + self.service_id)
+                self.robot_ml_control_services_client = RobotMLControlServicesClient(
+                    self.css_node_name + "_" + self.service_id)
                 self.executor.add_node(self.robot_ml_control_services_client)
                 response.message = 'Robot Service Client successfully created and connected with 5G-ERA ML Control Services (' + self.css_node_name + self.service_id + '). '
             except ValueError as e:
@@ -450,7 +460,7 @@ class RobotLogic(Node):
         :return: StopService Response.
         """
 
-        self.send_action_server_goal(-1) # turn off the deployed service
+        self.send_action_server_goal(-1)  # turn off the deployed service
 
         if not self.robot_ml_control_services_client:
             response.success = False
@@ -560,8 +570,8 @@ class RobotLogic(Node):
             cls = d["class"]
             cls_name = d["class_name"]
             # Draw detection into frame.
-            #x, y, w, h = d["bbox"]
-            #cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            # x, y, w, h = d["bbox"]
+            # cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
             if cls_name in ["face", "person"]:
                 x1, y1, x2, y2 = [int(coord) for coord in d["bbox"]]
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
@@ -592,7 +602,7 @@ def main(args=None):
     else:
         print("using multi")
         # this swallows exceptions (not sure why), which makes debugging hard..."""
-    executor = MultiThreadedExecutor() # we need to use MultiThreadedExecutor to be able to deploy service during the Start service call
+    executor = MultiThreadedExecutor()  # we need to use MultiThreadedExecutor to be able to deploy service during the Start service call
 
     # Create the RobotLogic node.
     robot_logic = RobotLogic(arguments.robot_node_name)
