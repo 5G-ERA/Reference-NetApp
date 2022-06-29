@@ -49,7 +49,7 @@ from era_5g_action_interfaces.action import Goal5g
 self._action_client  = ActionClient(self, Goal5g, 'goal_5g', callback_group=self.callback_group)  # instantiate a new client for the era_5g_action_client
 if not self._action_client.wait_for_server(15):
     raise ValueError(
-        'ActionServer5G is not available')
+        'ActionServerNode is not available')
 ```
 
 3. Ask middleware to provide a specific NetApp by sending a goal to the era_5g_action_server
@@ -65,7 +65,7 @@ self._send_goal_future.add_done_callback(self.goal_response_callback)
 4. Check if the goal was accepted or rejected by the era_5g_action_server in the goal_response_callback
 
 ```python 
-def goal_response_callback(self, future): # Method to handle what to do after goal was either rejected or accepted by ActionServer5G.
+def goal_response_callback(self, future): # Method to handle what to do after goal was either rejected or accepted by ActionServerNode.
     goal_handle = future.result()
     if not goal_handle.accepted:
         self.get_logger().info('Goal rejected!')
@@ -86,7 +86,7 @@ def goal_response_callback(self, future): # Method to handle what to do after go
 6. Create feedback_callback, which is periodicaly called with the current state of the NetApp and it should be used to check if the NetApp is ready and what is the ServiceInstanceId of the NetApp
 
 ```python
-def feedback_callback(self, feedback_msg): # Obtaining the feedback from the ActionServer5G        
+def feedback_callback(self, feedback_msg): # Obtaining the feedback from the ActionServerNode
     feedback = feedback_msg.feedback
     resource_status = ast.literal_eval(feedback.feedback_resources_status) # get resource feedback for specific action id
     self.resourceStatus = resource_status["ActionSequence"][0]["Services"][0]["ServiceStatus"] # Obtain service status for our deployed service
@@ -101,7 +101,7 @@ def feedback_callback(self, feedback_msg): # Obtaining the feedback from the Act
 
 ## Step-by-step Integration of robot_ml_control_services_client
 
-The reference implementation/integration of ``robot_ml_control_services_client`` (``RobotMLControlServicesClient`` class)is 
+The reference implementation/integration of ``robot_ml_control_services_client`` (``RobotMLControlServicesClient`` class) is 
 available in this ([repository](https://github.com/5G-ERA/Reference-NetApp/blob/master/src/era_5g_robot/era_5g_robot/robot_node.py)). 
 The implementation of the RobotMLControlServicesClient class is in the same source code as the RobotLogic class, which 
 is used to demonstrate robot logic, but these classes can be in separate packages.

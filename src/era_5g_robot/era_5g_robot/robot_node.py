@@ -301,7 +301,7 @@ class RobotLogic(Node):
         self.css_node_name = "/ml_control_services"  # TODO: should be obtained from the MW (?)
         self.css_deployed_event = Event()  # marks that that CSS was deployed (does not have to be deployed successfully)
 
-        self.callback_group = ReentrantCallbackGroup()  # needed to be able to process ActionServer5G feedback when start_service_callback is active
+        self.callback_group = ReentrantCallbackGroup()  # needed to be able to process ActionServerNode feedback when start_service_callback is active
         # Create services for middleware communication.
         self.start_service = self.create_service(StartService, node_name + '/start_service',
                                                  self.start_service_callback,
@@ -334,14 +334,14 @@ class RobotLogic(Node):
         # Frame ID.
         self.frame_id = 0
 
-        # Connect to the ActionServer5G
+        # Connect to the ActionServerNode
         self._action_client = ActionClient(self, Goal5g, 'goal_5g',
-                                           callback_group=self.callback_group)  # instantiate a new client for the ActionServer5G
-        self.get_logger().info("Waiting for ActionServer5G")
+                                           callback_group=self.callback_group)  # instantiate a new client for the ActionServerNode
+        self.get_logger().info("Waiting for ActionServerNode")
         if not self._action_client.wait_for_server(15):
             raise ValueError(
-                'ActionServer5G is not available')
-        self.get_logger().info("Connected to ActionServer5G")
+                'ActionServerNode is not available')
+        self.get_logger().info("Connected to ActionServerNode")
 
         # Used to convert between ROS and OpenCV images.
         if os.name != 'nt':
@@ -349,7 +349,7 @@ class RobotLogic(Node):
         self.get_logger().info(node_name + ' node is running')
 
     def goal_response_callback(self,
-                               future):  # Method to handle what to do after goal was either rejected or accepted by ActionServer5G.
+                               future):  # Method to handle what to do after goal was either rejected or accepted by ActionServerNode.
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().info('Goal rejected!')
@@ -365,7 +365,7 @@ class RobotLogic(Node):
         self.css_deployed_event.set()
         self.get_logger().info('Result: {0}'.format(result.result))
 
-    def feedback_callback(self, feedback_msg):  # Obtaining the feedback from the ActionServer5G
+    def feedback_callback(self, feedback_msg):  # Obtaining the feedback from the ActionServerNode
 
         feedback = feedback_msg.feedback
         resource_status = ast.literal_eval(
@@ -389,7 +389,7 @@ class RobotLogic(Node):
 
     def send_action_server_goal(self, action_reference: int) -> None:
         """
-        Creates a goal with specified action_reference and sends it to the ActionServer5G
+        Creates a goal with specified action_reference and sends it to the ActionServerNode
 
         :param action_reference: 0 for deploying the service, -1 for removing the service
         """
@@ -397,9 +397,9 @@ class RobotLogic(Node):
         goal_msg.goal_taskid = self.task_id  # task id
         goal_msg.action_reference = action_reference  # Action reference
         self.get_logger().info(
-            f"Connecting to ActionServer5G to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
+            f"Connecting to ActionServerNode to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
         if not self._action_client.wait_for_server(15):
-            raise ValueError('ActionServer5G is not available')
+            raise ValueError('ActionServerNode is not available')
         self.get_logger().info("Connected, trying to deploy service")
         self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
         self._send_goal_future.add_done_callback(self.goal_response_callback)
