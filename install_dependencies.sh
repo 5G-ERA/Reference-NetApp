@@ -1,3 +1,5 @@
+set -e
+
 rosdep install -i --from-path src --rosdistro galactic -y
 apt-get install -y python3-pip
 pip install requests

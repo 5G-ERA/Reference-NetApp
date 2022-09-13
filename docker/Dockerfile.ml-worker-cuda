@@ -1,0 +1,55 @@
+FROM nvidia/cuda:11.7.1-base-ubuntu20.04
+
+RUN apt update \
+    && apt upgrade -y
+
+# install ROS Galactic
+SHELL ["/bin/bash", "-c"] 
+RUN apt install -y software-properties-common \
+    && add-apt-repository universe \
+    && apt update && apt install -y curl gnupg lsb-release \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" |  tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+    && apt update \
+    && apt install -y ros-galactic-ros-base
+    
+
+RUN apt-get install -y python3-pip 
+
+ENV ROS2_5G_ERA_MMDET_PATH=/root/mmdetection
+
+RUN apt-get install -y python3-colcon-common-extensions ros-galactic-cv-bridge \
+    && pip3 install celery redis rosdep
+
+RUN cd /root/ \
+    && mkdir -p dev_ws/src
+
+COPY ./set_environment.sh /root/dev_ws 
+
+COPY ./install_dependencies.sh /root/dev_ws 
+
+COPY ./src/era_5g_object_detection_distributed /root/dev_ws/src/era_5g_object_detection_distributed
+
+COPY ./src/era_5g_helpers /root/dev_ws/src/era_5g_helpers
+
+COPY ./src/era_5g_service_interfaces /root/dev_ws/src/era_5g_service_interfaces
+
+RUN cd /root/dev_ws \
+    && rosdep init \
+    && rosdep update \
+    && apt install -y git \
+    && bash install_dependencies.sh 
+
+RUN . /opt/ros/galactic/setup.sh \
+    && cd /root/dev_ws \
+    && colcon build 
+    
+COPY ./assets/ /root/assets
+
+ENV ROS2_5G_ERA_ASSETS_PATH=/root/assets
+
+COPY ./docker/run_worker.sh /root/run_worker.sh
+
+ENV C_FORCE_ROOT=1
+
+CMD ["/bin/bash", "/root/run_worker.sh"]
