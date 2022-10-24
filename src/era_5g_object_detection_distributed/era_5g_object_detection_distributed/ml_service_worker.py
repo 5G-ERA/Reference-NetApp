@@ -45,11 +45,12 @@ class MMDetector(DetectorBase):
         print("Initializing mmDet detector.")
         config_file = os.path.join(path_to_mmdet, MODEL_VARIANTS[model_variant]['config_file'])
         checkpoint_file = os.path.join(path_to_mmdet, MODEL_VARIANTS[model_variant]['checkpoint_file'])
+        self.with_masks = MODEL_VARIANTS[model_variant]['with_masks']
         self.model = init_detector(config_file, checkpoint_file, device=torch_device)
 
     def inference(self, image):    
         result = inference_detector(self.model, image)
-        detections = convert_mmdet_result(result, merged_data=True)
+        detections = convert_mmdet_result(result, with_mask=self.with_masks, merged_data=True)
         return detections
 
 

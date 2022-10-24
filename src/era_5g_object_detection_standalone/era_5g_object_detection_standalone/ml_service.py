@@ -1,8 +1,4 @@
-# Basic ROS 2 program to subscribe to real-time streaming
-# video from your built-in webcam
-# Author:
-# - Addison Sears-Collins
-# - https://automaticaddison.com
+# Standalone service implementation
 
 from heapq import merge
 import json
@@ -11,6 +7,8 @@ import os
 import sys
 import uuid
 import cv2
+import time
+import math
 from concurrent.futures import ThreadPoolExecutor
 from queue import Empty, Full, Queue
 from typing import Dict  # for Python 3.9, just 'dict' will be fine
@@ -30,6 +28,8 @@ from std_msgs.msg import String
 
 from mmdet.apis import init_detector, inference_detector
 
+max_latency = os.getenv("NETAPP_MAX_LATENCY", 100)
+
 path_to_assets = get_path_to_assets()
 path_to_mmdet = get_path_from_env("ROS2_5G_ERA_MMDET_PATH")
 model_variant = os.getenv("NETAPP_MODEL_VARIANT")
@@ -38,6 +38,24 @@ torch_device = os.getenv("NETAPP_TORCH_DEVICE", 'cpu') # 'cpu', 'cuda', 'cuda:0'
 # TODO: add possibility to override the predefined tags with URLs to custom models
 # NETAPP_MODEL_CONFIG_URL
 # NETAPP_MODEL_CHECKPOINT_URL
+
+
+# Class for holding data about processing times (latency)
+class LatencyMeasurements:
+    def __init__(self, num_latencies_to_keep=3):
+        self.num_latencies_to_keep = num_latencies_to_keep
+        self.processing_latencies = np.zeros(num_latencies_to_keep)
+
+    def store_latency(self, latency):
+        # Remove the oldest entry and add the new one
+        # Using strategy "Copy one before and substitute at the end" (fastest)
+        self.processing_latencies[0:-1] = self.processing_latencies[1:]
+        self.processing_latencies[-1] = latency
+    
+    def get_avg_latency(self):
+        return np.mean(self.processing_latencies)
+
+latency_measurements = LatencyMeasurements()
 
 
 if os.name == 'nt':
@@ -119,6 +137,8 @@ class TaskHandler(Node):
         """
         Image callback function.
         """
+        timestamp = time.time()
+
         # Convert ROS Image message to OpenCV image
         if os.name == 'nt':
             current_frame = cv2.imread(IMG_PATH)
@@ -126,17 +146,20 @@ class TaskHandler(Node):
             current_frame = self._br.imgmsg_to_cv2(data)
 
         # Create metadata for image
-        metadata = {"node_name": self.get_name(), "header": data.header}
+        metadata = {"node_name": self.get_name(), "header": data.header, "arrival_time": timestamp}
 
+        job_data = (metadata, current_frame)
+
+        # Pass info about the task to the thread for reading results
         try:
-            self._q.put((metadata, current_frame), block=False)  # TODO maybe add a little timeout here?
+            self._q.put(job_data, block=False)  # TODO maybe add a little timeout here?
         except Full:
             self.get_logger().warning(f"Image queue full, skipping data (frame_id {data.header.frame_id})...")
             return
 
         self.get_logger().info('Receiving image - frame_id: ' + data.header.frame_id)
 
-    def publish_results(self, data):
+    def publish_results(self, data, with_mask=False):
 
         metadata, raw_results = data
 
@@ -149,16 +172,27 @@ class TaskHandler(Node):
 
         results["detections"] = []
 
-        for (bbox, score, cls_id, cls_name) in raw_results:
+        for raw_result in raw_results:
             det = dict()
+            if with_mask:
+                bbox, score, cls_id, cls_name, mask = raw_result
+                det["mask"] = mask
+            else:
+                bbox, score, cls_id, cls_name = raw_result
+
             det["bbox"] = [float(i) for i in bbox]
             det["score"] = float(score)
             det["class"] = int(cls_id)
             det["class_name"] = str(cls_name)
-            # TODO: masks
 
             results["detections"].append(det)
 
+        # Calculate total processing time
+        processing_complete_time = time.time()
+        processing_start_time = metadata["arrival_time"]
+        latency = processing_complete_time - processing_start_time
+        latency_measurements.store_latency(latency)
+        
         msg = String()
         msg.data = json.dumps(results)
         try:
@@ -185,7 +219,27 @@ class MMDetector(ThreadBase):
         # init detector (based on values given in env var)
         config_file = os.path.join(path_to_mmdet, MODEL_VARIANTS[model_variant]['config_file'])
         checkpoint_file = os.path.join(path_to_mmdet, MODEL_VARIANTS[model_variant]['checkpoint_file'])
+        self.with_masks = MODEL_VARIANTS[model_variant]['with_masks']
         self.model = init_detector(config_file, checkpoint_file, device=torch_device)
+        self._warmup()
+
+    def _warmup(self):
+        # Run detector serveral times on empty data
+        #global latency_measurements
+        self.logger.info(f"{self.name} thread: detector warmup...")
+        init_img = np.zeros((240,240,3)) # shape does not matter (it is resized during inference)
+        
+        # Warmup
+        for _ in range(3):
+            inference_detector(self.model, init_img)
+        
+        # Initial latency measurments
+        for _ in range(latency_measurements.num_latencies_to_keep):
+            start_time = time.time()
+            inference_detector(self.model, init_img)
+            # Add 10% for overhead
+            latency = (time.time() - start_time) * 1.1
+            latency_measurements.store_latency(latency)
 
     def _run(self):
 
@@ -200,12 +254,12 @@ class MMDetector(ThreadBase):
                 continue
             
             result = inference_detector(self.model, image)
-            detections = convert_mmdet_result(result, merged_data=True)
+            detections = convert_mmdet_result(result, with_mask=self.with_masks, merged_data=True)
 
             # Put results in output queue
             task_id = metadata["node_name"]
             try:
-                self._tasks[task_id].publish_results((metadata, detections))
+                self._tasks[task_id].publish_results((metadata, detections), with_mask=self.with_masks)
             except KeyError:  # maybe the task was stopped in the meantime
                 self.logger.warning(f"Task_id {task_id} no longer exists.")
 
@@ -342,11 +396,39 @@ class ControlService(Node):
         self.get_logger().info("Control Service running...")
 
     def send_middleware_heart_beat(self):
-        # TODO compute limits
-        data = {"Id": era_5g_helpers.NETAPP_ID, "HardLimit": 10, "OptimalLimit": 5,
-                "CurrentRobotsCount": len(self._robot_nodes)}
+        avg_latency = latency_measurements.get_avg_latency()
+        queue_size = self._image_queue.qsize()
+        queue_occupancy = queue_size / self._image_queue.maxsize
+        # Latency can change over time, so reporting just the simple que occupancy can be misleading.
+        # Instead, it is better to report occupancy in terms of:
+        #  'total time estimated to be needed to process everything in the queue' / 'required max latency'
+        processing_time_occupancy = queue_size * avg_latency / max_latency
+        current_robot_count = len(self._robot_nodes)
+
+        if queue_size == 0:
+            # If the queue is empty then no estimate can be made about robot count limit, 
+            # but most likely at least one more robot can be added.
+            hard_robot_count_limit = current_robot_count + 1
+            optimal_robot_count_limit = current_robot_count + 1
+        elif avg_latency == 0:
+            # If there are no latency measurements, the maximum number of robots cannot be estimated 
+            # using processing_time_occupancy, but we can still try to use queue_occupancy.
+            hard_robot_count_limit = math.floor(current_robot_count / queue_occupancy)
+            optimal_robot_count_limit = math.floor(hard_robot_count_limit * 0.8)
+        else:
+            hard_robot_count_limit = math.floor(current_robot_count / processing_time_occupancy)
+            optimal_robot_count_limit = math.floor(hard_robot_count_limit * 0.8)
+
+        data = {"Id": era_5g_helpers.NETAPP_ID, 
+                "AvgLatency": avg_latency, "QueueOccupancy": queue_occupancy,
+                "ProcessingTimeOccupancy": processing_time_occupancy,
+                "CurrentRobotsCount": current_robot_count,
+                "OptimalLimit": optimal_robot_count_limit, 
+                "HardLimit": hard_robot_count_limit
+                }
         headers = {"Content-type": "application/json"}
         era_5g_helpers.send_middleware_heart_beat_request(self, headers=headers, json=data)
+        self.get_logger().info(f"{self.get_name()} published heart_beat to middleware: {data}") 
 
     def publish_heart_beat(self):
         self.heart_beat_string.data = "heart_beat"
@@ -413,12 +495,22 @@ def main(args=None):
 
     logger = get_thread_logger(log_level=logging.INFO)
 
+    # Create detector
     if not model_variant or model_variant == "cv2_faces":
         detector_thread = FaceDetector(logger, "Detector", image_queue, task_nodes)
     elif model_variant in MODEL_VARIANTS.keys():
         detector_thread = MMDetector(logger, "Detector", image_queue, task_nodes)
     else:
         raise ValueError("Given model variant is currently not supported.")
+    
+    # Estimate new queue size based on maximum latency
+    avg_latency = latency_measurements.get_avg_latency() # obtained from detector init warmup
+    if avg_latency != 0:  # warmup can be skipped
+        new_queue_size = int(max_latency / avg_latency)
+        image_queue = Queue(new_queue_size)
+        detector_thread.input_queue = image_queue
+    
+    # Start detector thread
     detector_thread.start(daemon=True)
 
     if __debug__:

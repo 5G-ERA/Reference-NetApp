@@ -22,6 +22,7 @@ from sensor_msgs.msg import Image  # Image is the message type
 from std_msgs.msg import String
 import sys
 import era_5g_helpers
+from era_5g_helpers.mmdet_utils import MODEL_VARIANTS
 
 from era_5g_object_detection_distributed.ml_service_worker import detector_task
 
@@ -83,7 +84,11 @@ class ResultsReader(ThreadBase):
         self.logger = logger
         self._jobs_info_que = jobs_info_que
         self._result_publisher = result_publisher
-        
+
+        # Determine if results contain masks
+        model_variant = os.getenv("NETAPP_MODEL_VARIANT")
+        self.with_masks = MODEL_VARIANTS[model_variant]['with_masks']
+                
         self.jobs_in_process = []
 
     def _run(self):
@@ -105,7 +110,7 @@ class ResultsReader(ThreadBase):
                 if job.state == "SUCCESS":
                     jobs_to_remove.add(job)
                     result = job.get()
-                    self.publish_results(result)
+                    self.publish_results(result, self.with_masks)
                     
                 elif job.state == "REVOKED":
                     jobs_to_remove.add(job)
@@ -121,7 +126,7 @@ class ResultsReader(ThreadBase):
             else: 
                 sleep(0.02)
         
-    def publish_results(self, data):
+    def publish_results(self, data, with_mask=False):
         metadata, raw_results = data
 
         # TODO this should definitely be a ROS message, not dict
@@ -133,13 +138,18 @@ class ResultsReader(ThreadBase):
 
         results["detections"] = []
 
-        for (bbox, score, cls_id, cls_name) in raw_results:
+        for raw_result in raw_results:
             det = dict()
+            if with_mask:
+                bbox, score, cls_id, cls_name, mask = raw_result
+                det["mask"] = mask
+            else:
+                bbox, score, cls_id, cls_name = raw_result
+
             det["bbox"] = [float(i) for i in bbox]
             det["score"] = float(score)
             det["class"] = int(cls_id)
             det["class_name"] = str(cls_name)
-            # TODO: masks
 
             results["detections"].append(det)
         

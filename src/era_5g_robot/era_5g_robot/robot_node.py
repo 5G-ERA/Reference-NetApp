@@ -10,6 +10,8 @@ import json
 import cv2  # OpenCV library.
 import os
 import numpy as np
+import base64
+import pycocotools.mask as masks_util
 
 if os.name != 'nt':
     from cv_bridge import CvBridge  # Package to convert between ROS and OpenCV Images.
@@ -301,7 +303,7 @@ class RobotLogic(Node):
         self.css_node_name = "/ml_control_services"  # TODO: should be obtained from the MW (?)
         self.css_deployed_event = Event()  # marks that that CSS was deployed (does not have to be deployed successfully)
 
-        self.callback_group = ReentrantCallbackGroup()  # needed to be able to process ActionServerNode feedback when start_service_callback is active
+        self.callback_group = ReentrantCallbackGroup()  # needed to be able to process ActionServer5G feedback when start_service_callback is active
         # Create services for middleware communication.
         self.start_service = self.create_service(StartService, node_name + '/start_service',
                                                  self.start_service_callback,
@@ -334,14 +336,14 @@ class RobotLogic(Node):
         # Frame ID.
         self.frame_id = 0
 
-        # Connect to the ActionServerNode
+        # Connect to the ActionServer5G
         self._action_client = ActionClient(self, Goal5g, 'goal_5g',
-                                           callback_group=self.callback_group)  # instantiate a new client for the ActionServerNode
-        self.get_logger().info("Waiting for ActionServerNode")
+                                           callback_group=self.callback_group)  # instantiate a new client for the ActionServer5G
+        self.get_logger().info("Waiting for ActionServer5G")
         if not self._action_client.wait_for_server(15):
             raise ValueError(
-                'ActionServerNode is not available')
-        self.get_logger().info("Connected to ActionServerNode")
+                'ActionServer5G is not available')
+        self.get_logger().info("Connected to ActionServer5G")
 
         # Used to convert between ROS and OpenCV images.
         if os.name != 'nt':
@@ -349,7 +351,7 @@ class RobotLogic(Node):
         self.get_logger().info(node_name + ' node is running')
 
     def goal_response_callback(self,
-                               future):  # Method to handle what to do after goal was either rejected or accepted by ActionServerNode.
+                               future):  # Method to handle what to do after goal was either rejected or accepted by ActionServer5G.
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().info('Goal rejected!')
@@ -365,7 +367,7 @@ class RobotLogic(Node):
         self.css_deployed_event.set()
         self.get_logger().info('Result: {0}'.format(result.result))
 
-    def feedback_callback(self, feedback_msg):  # Obtaining the feedback from the ActionServerNode
+    def feedback_callback(self, feedback_msg):  # Obtaining the feedback from the ActionServer5G
 
         feedback = feedback_msg.feedback
         resource_status = ast.literal_eval(
@@ -389,7 +391,7 @@ class RobotLogic(Node):
 
     def send_action_server_goal(self, action_reference: int) -> None:
         """
-        Creates a goal with specified action_reference and sends it to the ActionServerNode
+        Creates a goal with specified action_reference and sends it to the ActionServer5G
 
         :param action_reference: 0 for deploying the service, -1 for removing the service
         """
@@ -397,9 +399,9 @@ class RobotLogic(Node):
         goal_msg.goal_taskid = self.task_id  # task id
         goal_msg.action_reference = action_reference  # Action reference
         self.get_logger().info(
-            f"Connecting to ActionServerNode to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
+            f"Connecting to ActionServer5G to send a new goal with ID {self.task_id} and ActionReference {action_reference}")
         if not self._action_client.wait_for_server(15):
-            raise ValueError('ActionServerNode is not available')
+            raise ValueError('ActionServer5G is not available')
         self.get_logger().info("Connected, trying to deploy service")
         self._send_goal_future = self._action_client.send_goal_async(goal_msg, feedback_callback=self.feedback_callback)
         self._send_goal_future.add_done_callback(self.goal_response_callback)
@@ -570,11 +572,18 @@ class RobotLogic(Node):
             cls = d["class"]
             cls_name = d["class_name"]
             # Draw detection into frame.
-            # x, y, w, h = d["bbox"]
-            # cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
             if cls_name in ["face", "person"]:
                 x1, y1, x2, y2 = [int(coord) for coord in d["bbox"]]
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+                if "mask" in d:
+                    encoded_mask = d["mask"]
+                    encoded_mask["counts"] = base64.b64decode(encoded_mask["counts"])  # Base64 decode
+                    mask = masks_util.decode(encoded_mask).astype(np.bool)  # RLE decode
+                    color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
+                    frame[mask] = frame[mask] * 0.5 + color_mask * 0.5
+                    #cv2.imwrite("/home/ros/test_img_dist.jpg", frame)
+
 
         cv2.imshow("Detection_results", frame)
         cv2.waitKey(1)
