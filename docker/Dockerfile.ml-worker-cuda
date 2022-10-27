@@ -28,11 +28,11 @@ COPY ./set_environment.sh /root/dev_ws
 
 COPY ./install_dependencies.sh /root/dev_ws 
 
-COPY ./src/era_5g_object_detection_distributed /root/dev_ws/src/era_5g_object_detection_distributed
+COPY ./src/ros2/era_5g_object_detection_distributed /root/dev_ws/src/era_5g_object_detection_distributed
 
-COPY ./src/era_5g_helpers /root/dev_ws/src/era_5g_helpers
+COPY ./src/ros2/era_5g_helpers /root/dev_ws/src/era_5g_helpers
 
-COPY ./src/era_5g_service_interfaces /root/dev_ws/src/era_5g_service_interfaces
+COPY ./src/ros2/era_5g_service_interfaces /root/dev_ws/src/era_5g_service_interfaces
 
 RUN cd /root/dev_ws \
     && rosdep init \

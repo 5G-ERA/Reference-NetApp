@@ -1,4 +1,4 @@
-FROM ros:galactic-ros-base
+FROM ros:foxy-ros-base
 
 RUN apt-get update
 
@@ -19,7 +19,7 @@ RUN cd /root/dev_ws \
     && rosdep update \
     && bash install_dependencies.sh 
 
-RUN . /opt/ros/galactic/setup.sh \
+RUN . /opt/ros/foxy/setup.sh \
     && cd /root/dev_ws \
     && colcon build
 
