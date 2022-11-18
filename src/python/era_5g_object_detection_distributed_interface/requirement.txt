@@ -1,0 +1,6 @@
+era_5g_netapp_interface==0.0.1
+flask_socketio==5.3.*
+flask==2.2.*
+flask_session==0.4.*
+celery==5.2.7
+redis==4.3.4
