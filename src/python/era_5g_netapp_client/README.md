@@ -6,6 +6,14 @@ A client application for 5G-ERA NetApps. Contains basic implementation of the cl
 
 The reference implementation of the NetApp client is provided in the file tests/test_client_gstreamer.py.
 
+## Instalation
+
+The package could be installed via pip:
+
+```bash
+pip3 install .
+```
+
 ## Classes
 
 ### NetAppClient (client.py)
