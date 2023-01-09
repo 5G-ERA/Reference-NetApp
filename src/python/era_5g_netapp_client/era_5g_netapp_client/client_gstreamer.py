@@ -1,3 +1,4 @@
+from typing import Callable
 from .client import NetAppClient
 from .client import FailedToConnect
 
@@ -9,7 +10,8 @@ class NetAppClientGstreamer(NetAppClient):
         NetAppClient (_type_): the base client
     """
 
-    def __init__(self, host: str, port, results_event) -> None:
+    def __init__(self, host: str, user_id: str, password: str, task_id: str, resource_lock: str, results_event: Callable, use_middleware=True, wait_for_netapp=True, netapp_uri: str = None, netapp_port: int = None) -> None:
+        super().__init__(host, user_id, password, task_id, resource_lock, results_event, use_middleware, wait_for_netapp, netapp_uri, netapp_port)
         """
         Constructor
 
@@ -18,10 +20,10 @@ class NetAppClientGstreamer(NetAppClient):
             port (int): port of the NetApp interface
             results_event (Callable): callback where results will arrive
         """
-        super().__init__(host, port, results_event)
+        # TODO: update args
         # holds the gstreamer port
         self.gstreamer_port = None
-        c = NetAppClient()
+
 
     def register(self, args=dict()) -> str:
         """
@@ -40,6 +42,8 @@ class NetAppClientGstreamer(NetAppClient):
         Returns:
             str: response from the NetApp
         """
+        
+
         merged_args = {**args, **{"gstreamer": True}}
         resp = super().register(merged_args)
 
