@@ -22,22 +22,20 @@ def main():
 
     # IP address or hostname of the server
     server_ip = "IP_OR_HOSTNAME"
-    server_ip = "butcluster.ddns.net"  
-    user = "2c63955e-27cf-4b9a-980b-b70a54281d15"
-    password = "test"
-    #server_ip = "172.17.0.2"    
+    user = "GUID"
+    password = "passwd"
+    
+    # if middleware is ommited, the netapp address and port has to be specified manually
+    #netapp_uri = "localhost"
+    #netapp_port = "5896"  
 
     try:
         # to avoid exception in "except"
         client = None
         # creates the NetApp client with gstreamer extension
         client = NetAppClientGstreamer(server_ip, user, password, "7d93728a-4a4c-4dae-8245-16b86f85b246", True, get_results, True, True)
-        #client.wait_until_netapp_ready()
-        #client = NetAppClientGstreamer("", user, password, "7d93728a-4a4c-4dae-8245-16b86f85b246", True, get_results, False, False, "192.168.206.11", 5896)
-        print("resource should be ready now")
-        client.register()
         # register the client with the NetApp
-        #client.register()
+        client.register()
         # creates a data sender which will pass images from webcamera to the NetApp
         sender = DataSenderGStreamerFromSource(client.netapp_host, client.gstreamer_port, "v4l2src device=/dev/video0", 15)
         # waits infinitely
