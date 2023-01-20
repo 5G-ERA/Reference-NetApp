@@ -101,7 +101,7 @@ class NetAppClient():
 
             self.resource_checker = MiddlewareResourceChecker(logger, "resource_checker", self.token, self.action_plan_id, self.build_middleware_api_endpoint("orchestrate/orchestrate/plan"))
             self.resource_checker.start(daemon=True)
-            if self.wait_for_netapp:
+            if self.use_middleware and self.wait_for_netapp:
                 self.wait_until_netapp_ready()
                 print(self.resource_checker.is_ready())
                 self.load_netapp_uri()
@@ -232,10 +232,9 @@ class NetAppClient():
             print("Goal task is: "+str(taskid))
             hed = {'Authorization': f'Bearer {str(self.token)}'}
             data = {"TaskId": str(taskid), "LockResourceReUse": resource_lock}
-
             response = requests.post(self.build_middleware_api_endpoint("Task/Plan"), json=data, headers=hed).json()
-            if "statusCode" in response and response["statusCode"] == 500:
-                raise FailedToConnect(str(response["message"]))
+            if "statusCode" in response and (response["statusCode"] == 500 or response["statusCode"] == 400):
+                raise FailedToConnect(f"response {response['statusCode']}: {response['message']}")
             
             action_sequence = response['ActionSequence']
             #print(action_sequence)
