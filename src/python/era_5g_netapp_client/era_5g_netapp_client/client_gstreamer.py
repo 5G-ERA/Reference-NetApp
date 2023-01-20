@@ -25,7 +25,7 @@ class NetAppClientGstreamer(NetAppClient):
         self.gstreamer_port = None
 
 
-    def register(self, args=dict()) -> str:
+    def register(self, args=None) -> str:
         """
         Calls the /register endpoint of the NetApp interface and if the 
         registration is successfull, it setups the websocket connection
@@ -33,7 +33,7 @@ class NetAppClientGstreamer(NetAppClient):
 
         Args:
             args (_type_, optional): optional parameters to be passed to 
-            the NetApp. Defaults to dict().
+            the NetApp, in the form of dict. Defaults to None.
 
         Raises:
             FailedToConnect: raised when connection failed or the server

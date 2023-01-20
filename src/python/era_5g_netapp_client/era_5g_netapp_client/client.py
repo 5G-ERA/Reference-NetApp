@@ -112,15 +112,15 @@ class NetAppClient():
 
     
         
-    def register(self, args=dict()) -> str:
+    def register(self, args=None) -> str:
         """
         Calls the /register endpoint of the NetApp interface and if the 
         registration is successful, it setups the WebSocket connection
         for results retrieval.
 
         Args:
-            args (_type_, optional): optional parameters to be passed to 
-            the NetApp. Defaults to dict().
+            args (dict): optional parameters to be passed to 
+            the NetApp, in the form of dict. Defaults to None.
 
         Returns:
             str: response from the NetApp
