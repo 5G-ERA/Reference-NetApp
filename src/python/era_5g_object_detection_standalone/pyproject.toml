@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "era_5g_object_detection_standalone"
+version = "0.0.1"
+authors = [
+  { name="Michal Kapinus", email="ikapinus@fit.vutbr.cz" },
+]
+description = "Object detection standalone NetApp"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+

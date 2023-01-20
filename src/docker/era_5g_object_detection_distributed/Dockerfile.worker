@@ -1,0 +1,42 @@
+FROM but5gera/netapp_base_mmcv:0.1.0
+
+RUN wget -c https://download.openmmlab.com/mmdetection/v2.0/yolo/yolov3_mobilenetv2_320_300e_coco/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth -O "/root/mmdetection/configs/yolo/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth"
+
+
+
+
+
+COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
+
+RUN cd /root/era_5g_object_detection_common \
+	&& pip3 install -r requirement.txt \
+	&& pip3 install . 
+
+COPY python/era_5g_netapp_interface /root/era_5g_netapp_interface
+
+RUN cd /root/era_5g_netapp_interface \
+	&& pip3 install . 
+
+COPY python/era_5g_object_detection_distributed_worker /root/era_5g_object_detection_distributed_worker
+
+RUN cd /root/era_5g_object_detection_distributed_worker \
+	&& pip3 install -r requirement.txt \
+	&& pip3 install . 
+
+RUN useradd  --create-home --shell /bin/bash newuser
+
+COPY docker/era_5g_object_detection_distributed/start_worker.sh /home/newuser/start.sh
+
+RUN chown newuser /home/newuser/start.sh
+
+USER newuser
+WORKDIR /home/newuser
+
+
+RUN chmod +x /home/newuser/start.sh
+
+ENTRYPOINT ["/home/newuser/start.sh"]
+
+ENV NETAPP_MODEL_VARIANT=yolov3_mobilenet
+
+	

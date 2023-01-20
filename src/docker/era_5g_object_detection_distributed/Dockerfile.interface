@@ -1,0 +1,40 @@
+FROM but5gera/netapp_base_gstreamer:0.1.1
+
+ENTRYPOINT ["/root/start.sh"]
+
+RUN pip3 install simple-websocket
+
+RUN apt-get update \
+	&& apt-get install -y gcc
+
+COPY python/era_5g_netapp_interface /root/era_5g_netapp_interface
+
+RUN cd /root/era_5g_netapp_interface \
+	&& pip3 install . 
+
+
+COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
+
+RUN cd /root/era_5g_object_detection_common \
+	&& pip3 install -r requirement.txt \
+	&& pip3 install . 
+
+COPY python/era_5g_object_detection_distributed_interface /root/era_5g_object_detection_distributed_interface
+
+RUN cd /root/era_5g_object_detection_distributed_interface \
+	&& pip3 install -r requirement.txt \
+	&& pip3 install . 
+
+COPY python/era_5g_object_detection_distributed_worker /root/era_5g_object_detection_distributed_worker
+
+RUN cd /root/era_5g_object_detection_distributed_worker \
+	&& pip3 install . 
+
+COPY docker/era_5g_object_detection_distributed/start_interface.sh /root/start.sh
+
+RUN chmod +x /root/start.sh
+	
+EXPOSE 5896
+EXPOSE 5001 5002 5003
+
+	

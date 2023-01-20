@@ -12,7 +12,8 @@ export ROS2_5G_ERA_MMDET_PATH=$MMDET_PATH
 echo "ROS2_5G_ERA_MMDET_PATH set to $MMDET_PATH"
 
 # Selection of model variant for mmDetection 
-# (use "cv2_faces" to select the old opencv face detector)
+# - use "cv2_faces" to select the old opencv face detector
+# - available mmDet models: "yolov3_mobilenet", "mask_rcnn_r50"
 export NETAPP_MODEL_VARIANT="yolov3_mobilenet"
 echo "NETAPP_MODEL_VARIANT set to $NETAPP_MODEL_VARIANT"
 

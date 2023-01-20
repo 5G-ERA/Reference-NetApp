@@ -1,0 +1,9 @@
+<launch>
+    <remap from="~images" to="$(env IMG_TOPIC)" />
+    <remap from="~results" to="$(env RES_TOPIC)" />
+
+    <param name="~rabbitmq_URL" value="$(env RABBITMQ_URL)" />
+    <param name="~redis_URL" value="$(env REDIS_URL)" />
+
+    <node name="image_connector" pkg="era_5g_topic_rest_connector" type="image_connector.py"  output="screen"/>
+</launch>

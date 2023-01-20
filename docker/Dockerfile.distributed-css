@@ -14,7 +14,7 @@ RUN cd /root/ \
 
 COPY ./set_environment.sh /root/dev_ws 
 
-COPY ./install_dependencies.sh /root/dev_ws 
+COPY ./install_dependencies_galactic.sh /root/dev_ws/install_dependencies.sh 
 
 COPY ./src/era_5g_object_detection_distributed /root/dev_ws/src/era_5g_object_detection_distributed
 
@@ -33,6 +33,8 @@ RUN . /opt/ros/galactic/setup.sh \
 COPY ./docker/run_distributed_css.sh /root/
 
 COPY ./assets/ /root/assets
+
+RUN pip3 install numpy===1.19.1
 
 ENV ROS2_5G_ERA_ASSETS_PATH=/root/assets
 
