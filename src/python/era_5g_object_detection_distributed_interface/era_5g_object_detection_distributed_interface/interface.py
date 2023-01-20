@@ -41,7 +41,6 @@ def register():
     Returns:
         _type_: The port used for gstreamer communication.
     """
-    global logger
     if not free_ports:
         return {"error": "Not enough resources"}, 503
 
@@ -105,7 +104,6 @@ def disconnect(sid):
 
 
 def main(args=None):
-    global jobs_info_queue 
     # creates a results reader, which periodicaly reads status of jobs in jobs_info_queue
     # to find finished jobs and pass the results to the robot
     results_reader = ResultsReader(logger, "results_reader", jobs_info_queue, app)

@@ -54,7 +54,6 @@ def register():
     Returns:
         _type_: The port used for gstreamer communication.
     """
-    global logger
     if not free_ports:
         return {"error": "Not enough resources"}, 503
     
@@ -148,9 +147,7 @@ def disconnect(sid):
 
 
 def main(args=None):
-    global image_queue
-
-    
+        
     # Creates detector and runs it as thread, listening to image_queue
     try:
         detector_thread = DetectorWorker(logger, "Detector", image_queue, app)
