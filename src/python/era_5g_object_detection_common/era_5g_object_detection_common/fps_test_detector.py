@@ -45,8 +45,6 @@ class FpsTestDetector(ImageDetector):
             self.frames = 0
             self.start_time = time.time()
             return [([0,0,0,0], fps, 0, "fps")]
-        else:
-            return []
 
     
         
