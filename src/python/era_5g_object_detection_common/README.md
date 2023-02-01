@@ -1,8 +1,8 @@
-# era_5g_netapp_interface
+# era_5g_object_detection_common
 
 Support classes for 5G-ERA object detectors NetApps.
 
-## Instalation
+## Installation
 
 The package could be installed via pip:
 
