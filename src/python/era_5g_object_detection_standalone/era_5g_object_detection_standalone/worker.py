@@ -52,19 +52,20 @@ class Worker(ImageDetector):
             results (_type_): The results of the detection.
         """
         detections = list()
-        for (bbox, score, cls_id, cls_name) in results:
-            
-            det = dict()
-            det["bbox"] = [float(i) for i in bbox]
-            det["score"] = float(score)
-            det["class"] = int(cls_id)
-            det["class_name"] = str(cls_name)
-            
-            detections.append(det)
+        if results is not None:
+            for (bbox, score, cls_id, cls_name) in results:
+                
+                det = dict()
+                det["bbox"] = [float(i) for i in bbox]
+                det["score"] = float(score)
+                det["class"] = int(cls_id)
+                det["class_name"] = str(cls_name)
+                
+                detections.append(det)
         
-        r = {"timestamp": metadata["timestamp"],
-                "detections": detections}
-            
-        # use the flask app to return the results
-        with self.app.app_context():              
-                flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
+            r = {"timestamp": metadata["timestamp"],
+                    "detections": detections}
+                
+            # use the flask app to return the results
+            with self.app.app_context():              
+                    flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
