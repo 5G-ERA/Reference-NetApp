@@ -4,12 +4,10 @@ import logging
 import secrets
 from queue import Queue
 import cv2
+import argparse
 
 import numpy as np
-# select the desired detector to be imported
-#from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker as DetectorWorker
-#from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker as DetectorWorker
-from era_5g_object_detection_standalone.worker_fps import FpsDetectorWorker as DetectorWorker
+
 
 from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
 
@@ -32,6 +30,7 @@ Session(app)
 socketio = flask_socketio.SocketIO(app, manage_session=False, async_mode='threading') 
 
 # list of available ports for gstreamer communication - they needs to be exposed when running in docker / k8s
+# could be changed using the script arguments
 free_ports = [5001, 5002, 5003]
 
 # list of registered tasks
@@ -43,8 +42,14 @@ image_queue = Queue(30)
 
 logger = get_logger(log_level=logging.INFO)
 
+# is gstreamer used to transpord data?
+gstreamer = False
+
 # the image detector to be used
 detector_thread = None
+
+class ArgFormatError(Exception):
+    pass
 
 @app.route('/register', methods=['GET'])
 def register():
@@ -60,6 +65,7 @@ def register():
     session['registered'] = True
 
     args = request.args.to_dict()
+    global gstreamer
     gstreamer = args.get("gstreamer", False)
     # select the appropriete task hander, depends on whether the client wants to use 
     # gstreamer to pass the images or not 
@@ -90,7 +96,8 @@ def unregister():
     if session.pop('registered', None):
         task = tasks.pop(session.sid)
         flask_socketio.disconnect(task.websocket_id, namespace="/results")
-        free_ports.append(task.port)
+        if gstreamer:
+            free_ports.append(task.port)
         task.stop()
         print(f"Client unregistered: {session_id}")
 
@@ -145,11 +152,41 @@ def connect(auth):
 def disconnect(sid):
     print('disconnect ', sid)
 
+def get_ports_range(ports_range):
+    if ports_range.count(':') != 1:
+        raise ArgFormatError
+    r1, r2 = ports_range.split(':')
+    if int(r2) <= int(r1):
+        raise ArgFormatError
+    return [port for port in range(int(r1), int(r2) + 1)]
+        
+
 
 def main(args=None):
-        
+
+    parser = argparse.ArgumentParser(description='Standalone variant of object detection NetApp')
+    parser.add_argument('--ports', default="5001:5003", help="Specify the range of ports available for gstreamer connections. Format port_start:port_end. Default is 5001:5003")
+    parser.add_argument('--detector', default="fps", help="Select detector. Available options are opencv, mmdetection, fps. Default is fps")
+    args = parser.parse_args()
+    global free_ports
+    try:
+        free_ports = get_ports_range(args.ports)
+    except ArgFormatError:
+        print("Port range specified in wrong format. The correct format is port_start:port_end, e.g. 5001:5003")
+        exit()
+    
+    
     # Creates detector and runs it as thread, listening to image_queue
     try:
+        if args.detector == "fps":
+            from era_5g_object_detection_standalone.worker_fps import FpsDetectorWorker as DetectorWorker
+        elif args.detector == "mmdetection":
+            from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker as DetectorWorker
+        elif args.detector == "opencv":
+            from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker as DetectorWorker
+        else:
+            print(f"Invalid detector selected. Available options are opencv, mmdetection, fps")
+            
         detector_thread = DetectorWorker(logger, "Detector", image_queue, app)
         detector_thread.start(daemon=True)
     except ImageDetectorInitializationFailed as ex:
