@@ -20,22 +20,16 @@ def main():
     Creates the client class and starts the data transfer
     """
 
-    # IP address or hostname of the server
-    server_ip = "IP_OR_HOSTNAME"
-    user = "GUID"
-    password = "passwd"
-
-    task_id = "7d93728a-4a4c-4dae-8245-16b86f85b246"
-    
-    # if middleware is omitted, the netapp address and port has to be specified manually
-    #netapp_uri = "127.0.0.1"
-    #netapp_port = "5896"  
+    # ip address or hostname of the computer, where the netapp is deployed
+    netapp_uri = "127.0.0.1"
+    # port of the netapp's server
+    netapp_port = "5896"
 
     try:
         # to avoid exception in "except"
         client = None
         # creates the NetApp client with gstreamer extension
-        client = NetAppClientGstreamer(server_ip, user, password, task_id, True, get_results, True, True)
+        client = NetAppClientGstreamer(None, None, None, None, True, get_results, False, False, netapp_uri, netapp_port)
         # register the client with the NetApp
         client.register()
         # creates a data sender which will pass images from webcamera to the NetApp
