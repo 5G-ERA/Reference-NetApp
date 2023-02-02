@@ -7,7 +7,7 @@ class DataSenderGStreamer():
     to send image frames using the OpenCV VideoWriter.
     """
 
-    def __init__(self, host: str, port: int, fps: float, threads: int = 1):
+    def __init__(self, host: str, port: int, fps: float, width: int, height: int, threads: int = 1):
         """
         Constructor
 
@@ -23,6 +23,8 @@ class DataSenderGStreamer():
         self.port = port
         self.fps = fps
         self.threads = threads
+        self.width = width
+        self.height = height
         
         # default pipeline for sending h264 encoded stream
         # ultrafast and zerolatency params for near real-time processing
@@ -30,8 +32,7 @@ class DataSenderGStreamer():
             'speed-preset=ultrafast  tune=zerolatency  byte-stream=true ' + \
             f'threads={self.threads} key-int-max=15 intra-refresh=true ! h264parse ! ' + \
             f'rtph264pay ! queue ! udpsink host={self.host} port={self.port}'
-            # TODO: make the dimensions of the image stream as a parameters
-        self.out = cv2.VideoWriter(gst_str_rtp, cv2.CAP_GSTREAMER, 0, fps, (640, 360), True)
+        self.out = cv2.VideoWriter(gst_str_rtp, cv2.CAP_GSTREAMER, 0, fps, (width, height), True)
 
     def send_image(self, frame):
         self.out.write(frame)
