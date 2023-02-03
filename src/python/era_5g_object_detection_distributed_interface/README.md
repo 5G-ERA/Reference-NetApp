@@ -6,7 +6,7 @@ Implementation of distributed variant of object detector NetApp interface. Requi
 
 The reference implementation of the NetApp interface is provided in the file era_5g_object_detection_distributed_interface/interface.py.
 
-## Instalation
+## Installation
 
 The package could be installed via pip:
 

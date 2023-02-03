@@ -2,7 +2,7 @@
 
 Support classes for 5G-ERA NetApps.
 
-## Instalation
+## Installation
 
 The package could be installed via pip:
 
