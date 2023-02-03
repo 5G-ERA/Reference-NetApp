@@ -113,16 +113,22 @@ def post_image():
     """
     sid = session.sid
     task = tasks[sid]
-    # convert string of image data to uint8
-    nparr = np.fromstring(request.data, np.uint8)
-    # decode image
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR) 
-    if "timestamp" in request.args:
-        timestamp = request.args["timestamp"]
+    
+    if "timestamps[]" in request.args:
+        timestamps = request.args.to_dict(flat=False)['timestamps[]']
     else:
-        timestamp = None
-    # store the image to the appropriate task
-    task.store_image({"sid": sid, "websocket_id": task.websocket_id, "timestamp": timestamp}, img)
+        timestamps = []
+    # convert string of image data to uint8
+    index = 0
+    for file in request.files.to_dict(flat=False)['files']:
+        #print(file)    
+        nparr = np.fromstring(file.read(), np.uint8)
+        # decode image
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR) 
+        
+        # store the image to the appropriate task
+        task.store_image({"sid": sid, "websocket_id": task.websocket_id, "timestamp": timestamps[index]}, img)
+        index += 1
     return Response(status=204)
 
 
