@@ -55,5 +55,6 @@ class DataSenderGStreamerFromFile(Thread):
                 self.data_sender_gstreamer.send_image(resized)
             else:
                 self.data_sender_gstreamer.send_image(frame)
+            
                 
         self.alive = False
