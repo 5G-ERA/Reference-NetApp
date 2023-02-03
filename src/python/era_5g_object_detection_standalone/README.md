@@ -1,12 +1,12 @@
 # era_5g_object_detection_standalone
 
-Implementation of standalone variant of object detector NetApp. Requires the opencv to be compiled with the support of Gstreamer.
+Implementation of standalone variant of object detector NetApp. Requires the opencv to be compiled with the support of Gstreamer. The range of ports available for the Gstreamer transport.
 
 ## Reference implementation
 
-The reference implementation of the NetApp client is provided in the file era_5g_object_detection_standalone/interface.py.
+The reference implementation of the NetApp client is provided in the file era_5g_object_detection_standalone/interface.py. 
 
-## Instalation
+## Installation
 
 The package could be installed via pip:
 
@@ -15,7 +15,7 @@ pip3 install -r requirement.txt
 pip3 install .
 ```
 
-A era_5g_object_detection_standalone binary could be used to run the NetApp once the package is installed. 
+An era_5g_object_detection_standalone binary could be used to run the NetApp once the package is installed. 
 
 ## Classes
 

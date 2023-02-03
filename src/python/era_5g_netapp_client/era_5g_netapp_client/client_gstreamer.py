@@ -43,8 +43,10 @@ class NetAppClientGstreamer(NetAppClient):
             str: response from the NetApp
         """
         
-
-        merged_args = {**args, **{"gstreamer": True}}
+        if args is None:
+            merged_args = {"gstreamer": True}
+        else:
+            merged_args = {**args, **{"gstreamer": True}}
         resp = super().register(merged_args)
 
         # checks whether the NetApp responded with any data

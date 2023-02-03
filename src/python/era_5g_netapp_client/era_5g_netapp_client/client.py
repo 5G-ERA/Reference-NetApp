@@ -72,7 +72,7 @@ class NetAppClient():
 
         self.sio = socketio.Client()
         self.s = requests.session()
-        self.host = host.rstrip('/')
+        self.host = host.rstrip('/') if host is not None else None 
         self.resource_lock = resource_lock
         self.netapp_host = netapp_uri
         self.netapp_port = netapp_port
