@@ -11,6 +11,8 @@ import logging
 
 logger = get_logger(logging.INFO)
 
+buffer = list()
+
 class FailedToConnect(Exception):
     """
     Exception which is raised when the client could not connect to the NetApp or Middleware.
@@ -184,7 +186,7 @@ class NetAppClient():
         """
         print("Connected to server")
 
-    def send_image(self, frame: np.ndarray, timestamp:str = None):
+    def send_image(self, frame: np.ndarray, timestamp:str = None, batch_size:int = 1):
         """
         Encodes the received image frame to the jpg format and sends
         it over the HTTP, to the /image endpoint.
@@ -193,12 +195,23 @@ class NetAppClient():
             frame (np.ndarray): image frame
             timestamp (str, optional): frame timestamp The timestamp format
             is defined by the NetApp. Defaults to None.
+            batch_size (int, optional): if higher than one, the images are 
+            send in batches. Defaults to 1
         """
-        _, img_encoded = cv2.imencode('.jpg', frame)
-        headers = {'content-type': 'image/jpeg'}
-        self.s.post(self.build_netapp_api_endpoint("image"), data=img_encoded.tostring(), 
-            headers=headers, params={"timestamp": timestamp})
+        assert(batch_size >= 1)
 
+        _, img_encoded = cv2.imencode('.jpg', frame)
+        
+        if len(buffer) < batch_size:
+            buffer.append((img_encoded, timestamp))
+
+        if len(buffer) == batch_size:
+            files = [('files', (f'image{i+1}', buffer[i][0], 'image/jpeg')) for i in range(batch_size)]
+            timestamps = [b[1] for b in buffer]            
+            self.s.post(self.build_netapp_api_endpoint("image"), files=files, 
+                    params={"timestamps[]": timestamps})
+            buffer.clear()
+            
     def wait_until_netapp_ready(self):
         self.resource_checker.wait_until_resource_ready()
 
