@@ -35,8 +35,9 @@ class MMDetectorWorker(Worker, MMDetector):
         """
         detections = list()
 
-        det = dict()
+        
         for result in results:
+            det = dict()
             # process the results based on currently used model
             if MODEL_VARIANTS[self.model_variant]['with_masks']:
                 bbox, score, cls_id, cls_name, mask = result
@@ -55,4 +56,4 @@ class MMDetectorWorker(Worker, MMDetector):
             
         # use the flask app to return the results
         with self.app.app_context():              
-                flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
+            flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
