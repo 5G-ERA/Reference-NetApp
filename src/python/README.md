@@ -23,10 +23,6 @@ cd ../era_5g_object_detection_common
 pip3 install -r requirement.txt
 pip3 install -e .
 
-cd ../era_5g_object_detection_common
-pip3 install -r requirement.txt
-pip3 install -e .
-
 cd ../era_5g_object_detection_distributed_interface
 pip3 install -r requirement.txt
 pip3 install -e .
