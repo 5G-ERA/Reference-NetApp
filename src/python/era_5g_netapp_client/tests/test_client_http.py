@@ -88,7 +88,7 @@ def main():
 
     try:
         # creates the NetApp client with gstreamer extension
-        client = NetAppClient(None, None, None, None, "True", get_results, False, False, netapp_uri, netapp_port)
+        client = NetAppClient(None, None, None, None, True, get_results, False, False, netapp_uri, netapp_port)
         # register the client with the NetApp
         client.register()
         if FROM_SOURCE:

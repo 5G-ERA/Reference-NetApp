@@ -3,9 +3,9 @@ from era_5g_netapp_client.data_sender_gstreamer_from_file import DataSenderGStre
 from era_5g_netapp_client.client_gstreamer import NetAppClientGstreamer
 from era_5g_netapp_client.client import FailedToConnect
 import traceback
+import signal
 
 FROM_SOURCE = False  # Video from source
-
 
 def get_results(results: str):
     """
@@ -23,17 +23,28 @@ def main():
     Creates the client class and starts the data transfer
     """
 
-    # ip address or hostname of the server (middleware)
-    server_ip = "localhost"
+    # ip address or hostname of the middleware server
+    server_ip = "butcluster.ddns.net"
+    # middleware user
     user = "2c63955e-27cf-4b9a-980b-b70a54281d15"
+    # middleware password
     password = "test"
+    # middleware NetApp id (task id)
     task_id = "7d93728a-4a4c-4dae-8245-16b86f85b246"
     # to avoid exception in "except"
     client = None
 
+    def signal_handler(sig, frame):
+        print('Terminating (SIGTERM)...')
+        if client is not None:
+            client.disconnect()
+        exit()
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
     try:
         # creates the NetApp client with gstreamer extension
-        client = NetAppClientGstreamer(server_ip, user, password, task_id, "True", get_results, True, True)
+        client = NetAppClientGstreamer(server_ip, user, password, task_id, True, get_results, True, True)
         # register the client with the NetApp
         client.register()
         if FROM_SOURCE:

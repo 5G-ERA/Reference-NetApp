@@ -34,16 +34,16 @@ class NetAppNotReady(Exception):
     """
 
 
-class NetAppClient():
+class NetAppClient:
     """
     Basic implementation of the NetApp client. It creates the Requests 
     object with session and bind callbacks for connection info 
     and results from the NetApp.
     """
 
-    def __init__(self, host: str, user_id: str, password: str, task_id: str, resource_lock: str,
-                 results_event: Callable, use_middleware=True, wait_for_netapp=True, netapp_uri: str = None,
-                 netapp_port: int = None) -> None:
+    def __init__(self, host: str, user_id: str, password: str, task_id: str, resource_lock: bool,
+                 results_event: Callable, use_middleware: bool = True, wait_for_netapp: bool = True,
+                 netapp_uri: str = None, netapp_port: int = None) -> None:
         """Constructor
 
         Args:
@@ -51,11 +51,12 @@ class NetAppClient():
             user_id (str): The middleware user's id
             password (str): The middleware user's password
             task_id (str): The ID of the NetApp to be deployed
-            resource_lock (str): TBA
+            resource_lock (bool): TBA
             results_event (Callable): callback where results will arrive
             use_middleware (bool, optional): Defines if the NetApp should be deployed by middleware. 
                 If False, the netapp_uri and netapp_port need to be defined, otherwise, 
                 they need to be left None. Defaults to True.
+            wait_for_netapp (bool, optional):
             netapp_uri (str, optional): The URI of the NetApp interface. Defaults to None.
             netapp_port (int, optional): The port of the NetApp interface. Defaults to None.
         
@@ -258,7 +259,8 @@ class NetAppClient():
             response = requests.post(self.build_middleware_api_endpoint("Task/Plan"), json=data, headers=hed).json()
             if "statusCode" in response and (response["statusCode"] == 500 or response["statusCode"] == 400):
                 raise FailedToConnect(f"response {response['statusCode']}: {response['message']}")
-
+            # todo:             if "errors" in response:
+            #                 raise FailedToConnect(str(response["errors"]))
             action_sequence = response['ActionSequence']
             # print(action_sequence)
             self.action_plan_id = response['ActionPlanId']

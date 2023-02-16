@@ -151,9 +151,9 @@ def connect(auth):
     flask_socketio.send("You are connected", namespace='/results', to=sid)
 
 
-@socketio.event
-def disconnect(sid):
-    print('Client disconnected', sid)
+@socketio.on('disconnect', namespace='/results')
+def disconnect():
+    print(f"Client disconnected: session id: {session.sid}, websocket id: {request.sid}")
 
 
 def get_ports_range(ports_range):

@@ -3,6 +3,7 @@ from era_5g_netapp_client.data_sender_gstreamer_from_file import DataSenderGStre
 from era_5g_netapp_client.client_gstreamer import NetAppClientGstreamer
 from era_5g_netapp_client.client import FailedToConnect
 import traceback
+import signal
 
 FROM_SOURCE = False  # Video from source
 
@@ -30,9 +31,17 @@ def main():
     # to avoid exception in "except"
     client = None
 
+    def signal_handler(sig, frame):
+        print(f"Terminating ({signal.Signals(sig).name})...")
+        if client is not None:
+            client.disconnect()
+        exit()
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
     try:
         # creates the NetApp client with gstreamer extension
-        client = NetAppClientGstreamer(None, None, None, None, "True", get_results, False, False, netapp_uri,
+        client = NetAppClientGstreamer(None, None, None, None, True, get_results, False, False, netapp_uri,
                                        netapp_port)
         # register the client with the NetApp
         client.register()
