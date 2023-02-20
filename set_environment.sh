@@ -20,7 +20,7 @@ export NETAPP_FACE_DETECTOR_MODEL_FILE="$ASSETS_PATH/haarcascade_frontalface_def
 
 # Directory with mmDetection
 export NETAPP_MMDET_PATH="/srv/mmdetection/"
-echo "NETAPP_MMDET_PATH set to $NETAPP_MMDET_PATH"
+#echo "NETAPP_MMDET_PATH set to $NETAPP_MMDET_PATH"
 
 # Selection of model variant for mmDetection 
 # - use "cv2_faces" to select the basic opencv face detector
