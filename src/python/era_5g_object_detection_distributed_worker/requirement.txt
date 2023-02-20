@@ -1,4 +1,4 @@
 era_5g_netapp_interface==0.0.1
 era_5g_object_detection_common==0.0.1
 celery==5.2.7
-redis==4.3.4
+redis>=4.3.4

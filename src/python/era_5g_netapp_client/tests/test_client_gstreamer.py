@@ -1,9 +1,25 @@
+import traceback
+import signal
+import os
 
-from era_5g_netapp_client.data_sender_gstreamer_from_source import DataSenderGStreamerFromSource 
+from era_5g_netapp_client.data_sender_gstreamer_from_source import DataSenderGStreamerFromSource
+from era_5g_netapp_client.data_sender_gstreamer_from_file import DataSenderGStreamerFromFile
 from era_5g_netapp_client.client_gstreamer import NetAppClientGstreamer
 from era_5g_netapp_client.client import FailedToConnect
-import traceback
-import time
+
+# Video from source flag
+FROM_SOURCE = os.getenv("FROM_SOURCE", False)
+# ip address or hostname of the middleware server
+MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
+# middleware user
+MIDDLEWARE_USER = os.getenv("MIDDLEWARE_USER", "00000000-0000-0000-0000-000000000000")
+# middleware password
+MIDDLEWARE_PASSWORD = os.getenv("MIDDLEWARE_PASSWORD", "password")
+# middleware NetApp id (task id)
+MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-000000000000")
+# test video file
+TEST_VIDEO_FILE = os.getenv("TEST_VIDEO_FILE", "../../../../assets/2017_01_02_001021_s.mp4")
+
 
 def get_results(results: str):
     """
@@ -12,53 +28,56 @@ def get_results(results: str):
     Args:
         results (str): The results in json format
     """
+
     print(results)
     pass
+
 
 def main():
     """
     Creates the client class and starts the data transfer
     """
 
-    # IP address or hostname of the server
-    server_ip = "IP_OR_HOSTNAME"
-    user = "GUID"
-    password = "passwd"
+    client = None
+    sender = None
 
-    task_id = "7d93728a-4a4c-4dae-8245-16b86f85b246"
-    
-    # if middleware is omitted, the netapp address and port has to be specified manually
-    #netapp_uri = "127.0.0.1"
-    #netapp_port = "5896"  
+    def signal_handler(sig, frame):
+        print(f"Terminating ({signal.Signals(sig).name})...")
+        if sender is not None:
+            sender.stop()
+        if client is not None:
+            client.disconnect()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        # to avoid exception in "except"
-        client = None
         # creates the NetApp client with gstreamer extension
-        client = NetAppClientGstreamer(server_ip, user, password, task_id, True, get_results, True, True)
+        client = NetAppClientGstreamer(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, MIDDLEWARE_TASK_ID, True, get_results, True, True)
         # register the client with the NetApp
         client.register()
-        # creates a data sender which will pass images to the NetApp either from webcamera ...
-                
-        data_src = f"v4l2src device=/dev/video0 ! video/x-raw, format=YUY2, width=640, height=480, " + \
-                    "pixel-aspect-ratio=1/1 ! videoconvert ! appsink"
-        sender = DataSenderGStreamerFromSource(client.netapp_host, client.gstreamer_port, data_src, 15, 640, 480, False)
-        
-        # ... or from file
-        
-        #sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, 15, "/path/to/the/file.ext", 640, 480)
+        if FROM_SOURCE:
+            # creates a data sender which will pass images to the NetApp either from webcam ...
+            data_src = f"v4l2src device=/dev/video0 ! video/x-raw, format=YUY2, width=640, height=480, " + \
+                       "pixel-aspect-ratio=1/1 ! videoconvert ! appsink"
+            sender = DataSenderGStreamerFromSource(client.netapp_host, client.gstreamer_port, data_src, 15, 640, 480,
+                                                   False)
+        else:
+            # or from file
+            sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, 15,
+                                                 TEST_VIDEO_FILE, 640, 480)
         # waits infinitely
         client.wait()
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
-    except KeyboardInterrupt as ex:
+    except KeyboardInterrupt:
         print("Terminating...")
     except Exception as ex:
         traceback.print_exc()
-        print(f"Failed to create client instance ({ex})") 
+        print(f"Failed to create client instance ({ex})")
     finally:
         if client is not None:
-            client.disconnect() 
+            client.disconnect()
 
 
 if __name__ == '__main__':

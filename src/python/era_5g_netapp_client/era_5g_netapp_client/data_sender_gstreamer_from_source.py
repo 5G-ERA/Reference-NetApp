@@ -7,10 +7,10 @@ class DataSenderGStreamerFromSource(Thread):
     """
     Class which setups gstreamer connection to the NetApp and
     sends the data from the gstreamer source.
-
     """
 
-    def __init__(self, ip: str, port: int, data_source: str, fps: float, width: int, height: int, resize:bool = True, threads:int = 1):
+    def __init__(self, ip: str, port: int, data_source: str, fps: float, width: int, height: int, resize: bool = True,
+                 threads: int = 1):
         """
         Constructor
 
@@ -24,7 +24,7 @@ class DataSenderGStreamerFromSource(Thread):
             height (int): the height (in pixels) the frame of the stream should be resized to 
                 (if resize=True) or the actual height of the frames in stream (if resize=False)
             resize (bool): indicates if the frames in the stream should be resized before sending. 
-                If False, the width and heigth parameters must contain the actual resolution of 
+                If False, the width and height parameters must contain the actual resolution of
                 the frames in the stream
             threads (int, optional): the number of threads to be used to encode the h264 stream. 
                 Defaults to 1.
@@ -32,26 +32,36 @@ class DataSenderGStreamerFromSource(Thread):
 
         # instantiate the base data sender object
         self.data_sender_gstreamer = DataSenderGStreamer(ip, port, fps, width, height)
-       
-        # creates the videcapture and runs the thread
+
+        # creates the video capture and runs the thread
         self.cap = cv2.VideoCapture(data_source, cv2.CAP_GSTREAMER)
+        if not self.cap.isOpened():
+            raise Exception("Cannot open video stream")
+
+        self.stopped = False
+        self.alive = True
         self.resize = resize
         t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
 
+    def stop(self):
+        self.stopped = True
+
     def run(self):
         """
         Reads the data from the gstreamer source and sends it using the base data sender
         """
-        while True:
+
+        while not self.stopped:
             ret, frame = self.cap.read()
-            if self.resize:
-                resized = cv2.resize(frame, (self.data_sender_gstreamer.width, self.data_sender_gstreamer.height), 
-                                     interpolation = cv2.INTER_AREA)
-            if ret == False:
+            if not ret:
                 break
             if self.resize:
+                resized = cv2.resize(frame, (self.data_sender_gstreamer.width, self.data_sender_gstreamer.height),
+                                     interpolation=cv2.INTER_AREA)
                 self.data_sender_gstreamer.send_image(resized)
             else:
                 self.data_sender_gstreamer.send_image(frame)
+
+        self.alive = False

@@ -4,9 +4,10 @@ import requests
 from requests import HTTPError
 import time
 
+
 class MiddlewareResourceChecker(ThreadBase):
 
-    def __init__(self, logger, name, token, action_plan_id, status_endpoint:str, state_callback: Callable = None):
+    def __init__(self, logger, name, token, action_plan_id, status_endpoint: str, state_callback: Callable = None):
         super().__init__(logger, name)
         self.token = token
         self.action_plan_id = action_plan_id
@@ -19,7 +20,7 @@ class MiddlewareResourceChecker(ThreadBase):
     def _run(self):
         while True:
             resource_state = self.getResourceStatus()
-            
+
             seq = resource_state.get('ActionSequence', [])
             if len(seq) > 0:
                 services = seq[0].get("Services", [])
@@ -30,8 +31,8 @@ class MiddlewareResourceChecker(ThreadBase):
 
             if self.state_callback:
                 self.state_callback(self.resource_state)
-            time.sleep(0.5) # TODO: adjust or use somehting similar to rospy.rate.sleep()
-    
+            time.sleep(0.5)  # TODO: adjust or use something similar to rospy.rate.sleep()
+
     def getResourceStatus(self):
         try:  # query orchestrator for latest information regarding the status of resources.
             hed = {'Authorization': 'Bearer ' + str(self.token)}
@@ -44,15 +45,12 @@ class MiddlewareResourceChecker(ThreadBase):
 
     def wait_until_resource_ready(self, timeout: int = -1):
         while True:
-            #if timeout < 0 and time.time() < timeout:
+            # if timeout < 0 and time.time() < timeout:
             #    raise TimeoutError
-            
+
             if self.is_ready():
                 return
             time.sleep(0.1)
 
     def is_ready(self):
         return self.status == "Active"
-
-
-
