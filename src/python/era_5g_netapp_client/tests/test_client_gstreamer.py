@@ -53,7 +53,8 @@ def main():
 
     try:
         # creates the NetApp client with gstreamer extension
-        client = NetAppClientGstreamer(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, MIDDLEWARE_TASK_ID, True, get_results, True, True)
+        client = NetAppClientGstreamer(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, MIDDLEWARE_TASK_ID,
+                                       True, get_results, True, True)
         # register the client with the NetApp
         client.register()
         if FROM_SOURCE:
@@ -62,10 +63,13 @@ def main():
                        "pixel-aspect-ratio=1/1 ! videoconvert ! appsink"
             sender = DataSenderGStreamerFromSource(client.netapp_host, client.gstreamer_port, data_src, 15, 640, 480,
                                                    False)
+            sender.start()
         else:
             # or from file
-            sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, 15,
-                                                 TEST_VIDEO_FILE, 640, 480)
+            sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, TEST_VIDEO_FILE, 15,
+                                                 640, 480)
+            sender.start()
+
         # waits infinitely
         client.wait()
     except FailedToConnect as ex:

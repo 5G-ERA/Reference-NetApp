@@ -6,7 +6,7 @@ import mmcv
 import pycocotools.mask as masks_util
 from mmdet.core import get_classes
 
-DEBUG=True
+DEBUG = True
 
 # mmDetection model config and checkpoint files (=allowed values of NETAPP_MODEL_VARIANT env variable)
 MODEL_VARIANTS = {
@@ -16,23 +16,25 @@ MODEL_VARIANTS = {
         'with_masks': False
     },
 
-    'cv2_faces': { # Only added so that a tag name exists for the old opencv face detector
-        'with_masks': False,  
+    'cv2_faces': {  # Only added so that a tag name exists for the old opencv face detector
+        'with_masks': False,
     },
 
     'mask_rcnn_r50': {
         'config_file': 'configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py',
-        'checkpoint_file': 'configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco_bbox_mAP-0.408__segm_mAP-0.37_20200504_163245-42aa3d00.pth',
+        'checkpoint_file': 'configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco_bbox_mAP-0.408__segm_mAP-0'
+                           '.37_20200504_163245-42aa3d00.pth',
         'with_masks': True
     },
-    
+
     # Example:
-    #'model_variant_name': {
+    # 'model_variant_name': {
     #    'config_file': '',
     #    'checkpoint_file': '',
     #    'with_masks': True
-    #},
+    # },
 }
+
 
 def convert_mmdet_result(result, dataset='coco', score_thr=0.5, with_mask=False, merged_data=True):
     # Convert raw results from mmDet to a desired format.
@@ -46,9 +48,8 @@ def convert_mmdet_result(result, dataset='coco', score_thr=0.5, with_mask=False,
         bbox_result, segm_result = result
     else:
         bbox_result = result
-    
+
     class_ids_raw = [
-        
         np.full(bbox.shape[0], i, dtype=np.int32) \
         for i, bbox in enumerate(bbox_result)
     ]

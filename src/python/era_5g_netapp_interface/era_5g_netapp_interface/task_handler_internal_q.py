@@ -1,5 +1,4 @@
 from queue import Full, Queue
-from logging import Logger
 
 from era_5g_netapp_interface.task_handler import TaskHandler
 
@@ -12,20 +11,18 @@ class TaskHandlerInternalQ(TaskHandler):
     directly and call the store_image method externally.
     """
 
-    def __init__(self, logger: Logger, sid: str, image_queue: Queue):
+    def __init__(self, sid: str, image_queue: Queue, **kw):
         """
         Constructor
 
         Args:
-            logger (Logger): A thread-safe logger. Could be obtained using the
-                era_5g_netapp_interface.common.get_logger() function.
             sid (str): The session id obtained from NetApp client. It is used to 
                 match the results with the data sender.
             image_queue (Queue): The queue where the image and metadata should 
                 be passed to.
         """
 
-        super().__init__(logger=logger, sid=sid)
+        super().__init__(sid=sid, **kw)
         self._q = image_queue
         self.index = 0
 
@@ -45,5 +42,5 @@ class TaskHandlerInternalQ(TaskHandler):
             pass
             # TODO: raise an exception
 
-    def _run(self):
+    def run(self):
         pass

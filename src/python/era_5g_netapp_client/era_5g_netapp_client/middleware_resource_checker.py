@@ -1,14 +1,15 @@
 from typing import Callable
-from era_5g_netapp_interface.common import ThreadBase
+from threading import Thread, Event
 import requests
 from requests import HTTPError
 import time
 
 
-class MiddlewareResourceChecker(ThreadBase):
+class MiddlewareResourceChecker(Thread):
 
-    def __init__(self, logger, name, token, action_plan_id, status_endpoint: str, state_callback: Callable = None):
-        super().__init__(logger, name)
+    def __init__(self, token, action_plan_id, status_endpoint: str, state_callback: Callable = None, **kw):
+        super().__init__(**kw)
+        self.stop_event = Event()
         self.token = token
         self.action_plan_id = action_plan_id
         self.resource_state = None
@@ -17,8 +18,11 @@ class MiddlewareResourceChecker(ThreadBase):
         self.status = None
         self.url = None
 
-    def _run(self):
-        while True:
+    def stop(self):
+        self.stop_event.set()
+
+    def run(self):
+        while not self.stop_event.is_set():
             resource_state = self.getResourceStatus()
 
             seq = resource_state.get('ActionSequence', [])

@@ -1,4 +1,3 @@
-import logging
 import secrets
 from queue import Queue
 import cv2
@@ -12,7 +11,6 @@ import flask_socketio
 from era_5g_netapp_interface.task_handler_gstreamer_internal_q import \
     TaskHandlerGstreamerInternalQ, TaskHandlerGstreamer
 from era_5g_netapp_interface.task_handler_internal_q import TaskHandlerInternalQ
-from era_5g_netapp_interface.common import get_logger
 from flask import Flask, Response, request, session
 
 from flask_session import Session
@@ -39,8 +37,6 @@ tasks = dict()
 # queue with received images
 # TODO: adjust the queue length
 image_queue = Queue(30)
-
-logger = get_logger(log_level=logging.INFO)
 
 # the image detector to be used
 detector_thread = None
@@ -73,9 +69,9 @@ def register():
     # gstreamer to pass the images or not 
     if gstreamer:
         port = free_ports.pop(0)
-        task = TaskHandlerGstreamerInternalQ(logger, session.sid, port, image_queue)
+        task = TaskHandlerGstreamerInternalQ(session.sid, port, image_queue, daemon=True)
     else:
-        task = TaskHandlerInternalQ(logger, session.sid, image_queue)
+        task = TaskHandlerInternalQ(session.sid, image_queue, daemon=True)
 
     tasks[session.sid] = task
     print(f"Client registered: {session.sid}")
@@ -154,7 +150,7 @@ def connect(auth):
     sid = request.sid
     print(f"Client connected: session id: {session.sid}, websocket id: {sid}")
     tasks[session.sid].websocket_id = sid
-    tasks[session.sid].start(daemon=True)
+    tasks[session.sid].start()
     flask_socketio.send("You are connected", namespace='/results', to=sid)
 
 
@@ -203,8 +199,8 @@ def main(args=None):
             raise ImageDetectorInitializationFailed(
                 "Invalid detector selected. Available options are opencv, mmdetection, fps.")
 
-        detector_thread = DetectorWorker(logger, "Detector", image_queue, app)
-        detector_thread.start(daemon=True)
+        detector_thread = DetectorWorker(image_queue, app, name="Detector", daemon=True)
+        detector_thread.start()
     except ImageDetectorInitializationFailed as ex:
         print(ex)
         exit()

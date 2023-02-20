@@ -1,5 +1,5 @@
 from abc import ABC
-from logging import Logger
+import logging
 import cv2
 
 from era_5g_netapp_interface.task_handler import TaskHandler, TaskHandlerInitializationFailed
@@ -12,22 +12,20 @@ class TaskHandlerGstreamer(TaskHandler, ABC):
     inherited to implement the store_image method.
     """
 
-    def __init__(self, logger: Logger, sid: str, port: str, **kwargs):
+    def __init__(self, sid: str, port: int, **kw):
         """
         Constructor
 
         Args:
-            logger (Logger): A thread-safe logger. Could be obtained using the
-                era_5g_netapp_interface.common.get_logger() function.
             sid (str): The session id obtained from NetApp client. It is used to 
                 match the results with the data sender.
-            port (str): The port where the Gstreamer pipeline should listen to.
+            port (int): The port where the Gstreamer pipeline should listen to.
         """
 
-        super().__init__(logger=logger, sid=sid, **kwargs)
+        super().__init__(sid=sid, **kw)
         self.port = port
 
-    def _run(self):
+    def run(self):
         """
         The infinite loop which reads the Gstreamer pipeline and pass the images
         to the store_image method, which has to be implemented in the child class.
@@ -43,17 +41,17 @@ class TaskHandlerGstreamer(TaskHandler, ABC):
                  f'appsink'
 
         try:
-            self.logger.info(f"creating capture on port {self.port}")
+            logging.info(f"Creating Gstreamer capture on port {self.port}")
             # standard OpenCV VideoCapture connected to the Gstreamer pipeline
             cap = cv2.VideoCapture(camSet)
             if not cap.isOpened():
-                raise TaskHandlerInitializationFailed("Videocapture was not opened")
-            self.logger.info("capture created")
+                raise TaskHandlerInitializationFailed("VideoCapture was not opened")
+            logging.info("Gstreamer capture created")
         except:
-            self.logger.info("capture fail")
+            logging.info("Gstreamer capture fail")
             exit(1)
 
-        while not self.stopped:
+        while not self.stop_event.is_set():
             ret, frame = cap.read()
             if ret:
                 # extract the timestamp from the frame

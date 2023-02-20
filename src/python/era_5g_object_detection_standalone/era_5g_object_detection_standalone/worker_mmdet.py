@@ -9,33 +9,30 @@ from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS
 class MMDetectorWorker(Worker, MMDetector):
     """
     Worker object for the universal detector based on MMDET package.
-
-    
     """
-    def __init__(self, logger, name, image_queue: Queue, app):
+
+    def __init__(self, image_queue: Queue, app, **kw):
         """
         Constructor
 
         Args:
-            logger (_type_): A thread-safe logger. Could be obtained using the 
-                era_5g_netapp_interface.common.get_logger() function.
-            name (str): The name of the thread.
             image_queue (Queue): Queue with all to-be-processed images.
             app (_type_): A flask app for results publishing.
         """
-        super().__init__(logger=logger, name=name, image_queue=image_queue, app=app)
+
+        super().__init__(image_queue=image_queue, app=app, **kw)
 
     def publish_results(self, results, metadata):
         """
-        Publishes the results to the robot
+        Publishes the results to the robot.
 
         Args:
             metadata (_type_): NetApp-specific metadata related to processed image. TODO: describe the metadata
             results (_type_): The results of the detection. TODO: describe the results format
         """
+
         detections = list()
 
-        
         for result in results:
             det = dict()
             # process the results based on currently used model
@@ -48,12 +45,12 @@ class MMDetectorWorker(Worker, MMDetector):
             det["score"] = float(score)
             det["class"] = int(cls_id)
             det["class_name"] = str(cls_name)
-            
+
             detections.append(det)
         # add timestamp to the results
         r = {"timestamp": metadata["timestamp"],
-                "detections": detections}
-            
+             "detections": detections}
+
         # use the flask app to return the results
-        with self.app.app_context():              
+        with self.app.app_context():
             flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
