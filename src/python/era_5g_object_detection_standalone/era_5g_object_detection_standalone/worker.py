@@ -3,6 +3,7 @@ import flask_socketio
 from era_5g_object_detection_common.image_detector import ImageDetector
 import cv2
 
+
 class Worker(ImageDetector):
     """
     Worker object for image processing in standalone variant. Reads 
@@ -29,19 +30,17 @@ class Worker(ImageDetector):
         Periodically reads images from python internal queue process them.
         """
         self.logger.debug(f"{self.name} thread is running.")
-        
+
         while not self.stopped:
             # Get image and metadata from input queue
             try:
                 metadata, image = self.image_queue.get(block=True)
             except Empty:
                 continue
-            
-            detections = self.process_image(image)
-            
-            self.publish_results(detections, metadata)
-            
 
+            detections = self.process_image(image)
+
+            self.publish_results(detections, metadata)
 
     def publish_results(self, results, metadata):
         """
@@ -54,18 +53,19 @@ class Worker(ImageDetector):
         detections = list()
         if results is not None:
             for (bbox, score, cls_id, cls_name) in results:
-                
+
                 det = dict()
                 det["bbox"] = [float(i) for i in bbox]
                 det["score"] = float(score)
                 det["class"] = int(cls_id)
                 det["class_name"] = str(cls_name)
-                
+
                 detections.append(det)
-        
+
             r = {"timestamp": metadata["timestamp"],
-                    "detections": detections}
-                
+                 "detections": detections}
+
             # use the flask app to return the results
-            with self.app.app_context():              
-                    flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
+            with self.app.app_context():
+                #print(f"publish_results to: {metadata['websocket_id']} flask_socketio.send: {r}")
+                flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])

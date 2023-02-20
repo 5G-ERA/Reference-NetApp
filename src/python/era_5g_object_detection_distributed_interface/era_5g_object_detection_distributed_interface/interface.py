@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-
+import os
 import logging
 import secrets
 from queue import Queue
@@ -12,6 +11,9 @@ from era_5g_netapp_interface.common import get_logger
 from flask import Flask, Response, request, session
 
 from flask_session import Session
+
+# port of the netapp's server
+NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 
 # flask initialization
 app = Flask(__name__)
@@ -120,7 +122,7 @@ def main(args=None):
     # runs the flask server
     # allow_unsafe_werkzeug needs to be true to run inside the docker
     # TODO: use better webserver
-    socketio.run(app, port=5896, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    socketio.run(app, port=NETAPP_PORT, host='0.0.0.0', allow_unsafe_werkzeug=True)
     
 
 

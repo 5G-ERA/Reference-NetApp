@@ -1,7 +1,5 @@
-numpy==1.23.*
+numpy>=1.23.*
 opencv_python==4.6.*
 pycocotools==2.0.*
 setuptools
-simple-websocket
-gevent-websocket
 eventlet

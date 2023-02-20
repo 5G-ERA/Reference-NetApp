@@ -1,6 +1,7 @@
 from threading import Thread
-from .data_sender_gstreamer import DataSenderGStreamer
 import cv2
+
+from .data_sender_gstreamer import DataSenderGStreamer
 
 
 class DataSenderGStreamerFromFile(Thread):
@@ -37,17 +38,22 @@ class DataSenderGStreamerFromFile(Thread):
         if not self.cap.isOpened():
             raise Exception("Cannot open video file")
 
+        self.stopped = False
         self.alive = True
         self.resize = resize
         t = Thread(target=self.run, args=())
         t.daemon = True
         t.start()
 
+    def stop(self):
+        self.stopped = True
+
     def run(self):
         """
         Reads the data from the gstreamer source and sends it using the base data sender
         """
-        while True:
+
+        while not self.stopped:
             ret, frame = self.cap.read()
             if not ret:
                 break

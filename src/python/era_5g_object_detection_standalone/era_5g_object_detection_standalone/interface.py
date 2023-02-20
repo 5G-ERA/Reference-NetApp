@@ -3,19 +3,22 @@ import secrets
 from queue import Queue
 import cv2
 import argparse
-
+import os
 import numpy as np
 
 from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
 
 import flask_socketio
 from era_5g_netapp_interface.task_handler_gstreamer_internal_q import \
-    TaskHandlerGstreamerInternalQ
+    TaskHandlerGstreamerInternalQ, TaskHandlerGstreamer
 from era_5g_netapp_interface.task_handler_internal_q import TaskHandlerInternalQ
 from era_5g_netapp_interface.common import get_logger
 from flask import Flask, Response, request, session
 
 from flask_session import Session
+
+# port of the netapp's server
+NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 
 # flask initialization
 app = Flask(__name__)
@@ -39,9 +42,6 @@ image_queue = Queue(30)
 
 logger = get_logger(log_level=logging.INFO)
 
-# is gstreamer used to transport data?
-#gstreamer = False
-
 # the image detector to be used
 detector_thread = None
 
@@ -58,6 +58,9 @@ def register():
     Returns:
         _type_: The port used for gstreamer communication.
     """
+    #print(f"register {session.sid} {session}")
+    #print(f"{request}")
+
     args = request.args.to_dict()
     gstreamer = args.get("gstreamer", False)
 
@@ -91,13 +94,14 @@ def unregister():
         _type_: 204 status
     """
     session_id = session.sid
-
+    #print(f"unregister {session.sid} {session}")
+    #print(f"{request}")
     if session.pop('registered', None):
         task = tasks.pop(session.sid)
-        flask_socketio.disconnect(task.websocket_id, namespace="/results")
-        if hasattr(task, 'port'):
-            free_ports.append(task.port)
         task.stop()
+        flask_socketio.disconnect(task.websocket_id, namespace="/results")
+        if isinstance(task, TaskHandlerGstreamer):
+            free_ports.append(task.port)
         print(f"Client unregistered: {session_id}")
 
     return Response(status=204)
@@ -106,10 +110,9 @@ def unregister():
 @app.route('/image', methods=['POST'])
 def post_image():
     """
-    Allows to send jpg-encoded image using the HTTP transport
-
-    
+    Allows to receive jpg-encoded image using the HTTP transport
     """
+
     sid = session.sid
     task = tasks[sid]
 
@@ -136,12 +139,16 @@ def connect(auth):
     """
     Creates a websocket connection to the client for passing the results.
 
-
     Raises:
         ConnectionRefusedError: Raised when attempt for connection were made
             without registering first.
     """
+
+    #print(f"connect {session.sid} {session}")
+    #print(f"{request.sid} {request}")
     if 'registered' not in session:
+        # TODO: disconnect?
+        #flask_socketio.disconnect(request.sid, namespace="/results")
         raise ConnectionRefusedError('Need to call /register first.')
 
     sid = request.sid
@@ -153,6 +160,8 @@ def connect(auth):
 
 @socketio.on('disconnect', namespace='/results')
 def disconnect():
+    #print(f"disconnect {session.sid} {session}")
+    #print(f"{request.sid} {request}")
     print(f"Client disconnected: session id: {session.sid}, websocket id: {request.sid}")
 
 
@@ -210,7 +219,7 @@ def main(args=None):
     # runs the flask server
     # allow_unsafe_werkzeug needs to be true to run inside the docker
     # TODO: use better webserver
-    socketio.run(app, port=5897, host='0.0.0.0', allow_unsafe_werkzeug=True)
+    socketio.run(app, port=NETAPP_PORT, host='0.0.0.0', allow_unsafe_werkzeug=True)
 
 
 if __name__ == '__main__':

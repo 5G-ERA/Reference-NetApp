@@ -1,17 +1,21 @@
 import time
 import cv2
 import requests
-from requests import HTTPError
+from requests import HTTPError, Response
 import socketio
 from collections.abc import Callable
 import numpy as np
 from era_5g_netapp_client.middleware_resource_checker import MiddlewareResourceChecker
 from era_5g_netapp_interface.common import get_logger
 import logging
+import os
 
 logger = get_logger(logging.INFO)
 
 buffer = list()
+
+# port of the netapp's server
+NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 
 
 class FailedToConnect(Exception):
@@ -86,6 +90,7 @@ class NetAppClient:
         self.use_middleware = use_middleware
         self.sio.on("message", results_event, namespace='/results')
         self.sio.on("connect", self.on_connect_event, namespace='/results')
+        self.sio.on("connect_error", self.on_connect_error, namespace='/results')
         self.session_cookie = None
         self.plan = None
         self.action_plan_id = None
@@ -115,10 +120,10 @@ class NetAppClient:
                 self.load_netapp_uri()
             print('Feedback: Got new plan successfully.')
         except Exception as ex:
-            self.deleteAllResources()
+            self.delete_all_resources()
             raise ex
 
-    def register(self, args=None) -> str:
+    def register(self, args=None) -> Response:
         """
         Calls the /register endpoint of the NetApp interface and if the 
         registration is successful, it sets up the WebSocket connection
@@ -129,27 +134,30 @@ class NetAppClient:
             the NetApp, in the form of dict. Defaults to None.
 
         Returns:
-            str: response from the NetApp
+            Response: response from the NetApp
         """
         if self.use_middleware and not self.resource_checker.is_ready:
             raise NetAppNotReady
 
-        resp = self.s.get(self.build_netapp_api_endpoint("register"), params=args)
+        response = self.s.get(self.build_netapp_api_endpoint("register"), params=args)
 
         # checks whether the NetApp responded with any data
-        if len(resp.content) > 0:
-            data = resp.json()
+        if len(response.content) > 0:
+            try:
+                data = response.json()
+            except ValueError as ex:
+                raise FailedToConnect(f"Decoding JSON has failed: {ex}, response: {response}")
             # checks if an error was returned
             if "error" in data:
-                err = data["error"]
-                raise FailedToConnect(f"{resp.status_code}: {err}")
+                raise FailedToConnect(f"{response.status_code}: {data['error']}")
 
-        self.session_cookie = resp.cookies["session"]
+        self.session_cookie = response.cookies["session"]
 
         # creates the WebSocket connection
         self.sio.connect(self.build_netapp_api_endpoint(""), namespaces=['/results'],
                          headers={'Cookie': f'session={self.session_cookie}'}, wait_timeout=10)
-        return resp
+
+        return response
 
     def disconnect(self):
         """
@@ -160,7 +168,7 @@ class NetAppClient:
             self.s.get(self.build_netapp_api_endpoint("unregister"))
         self.sio.disconnect()
         if self.use_middleware:
-            self.deleteAllResources()
+            self.delete_all_resources()
 
     def build_middleware_api_endpoint(self, path: str):
         """
@@ -198,6 +206,13 @@ class NetAppClient:
         """
         print("Connected to server")
 
+    def on_connect_error(self, data):
+        """
+        The callback called on connection error.
+        """
+        print(f"Connection error: {data}")
+        #self.disconnect()
+
     def send_image(self, frame: np.ndarray, timestamp: str = None, batch_size: int = 1):
         """
         Encodes the received image frame to the jpg format and sends
@@ -231,13 +246,13 @@ class NetAppClient:
         if not self.resource_checker.is_ready():
             raise NetAppNotReady
         self.netapp_host = self.resource_checker.url
-        self.netapp_port = "5896"
+        self.netapp_port = NETAPP_PORT
 
-    def gateway_login(self, ID, PASSWORD):
+    def gateway_login(self, id, password):
         print("Trying to log into the middleware")
         # Request Login
         try:
-            r = requests.post(self.build_middleware_api_endpoint("Login"), json={"Id": ID, "Password": PASSWORD})
+            r = requests.post(self.build_middleware_api_endpoint("Login"), json={"Id": id, "Password": password})
             response = r.json()
             if "errors" in response:
                 raise FailedToConnect(str(response["errors"]))
@@ -278,7 +293,7 @@ class NetAppClient:
         except KeyError as e:
             raise FailedToConnect(f"Could not get the plan, the response does not contain {e}")
 
-    def deleteAllResources(self):
+    def delete_all_resources(self):
         if self.token is None or self.action_plan_id is None:
             return
 
@@ -294,10 +309,10 @@ class NetAppClient:
             print(e.response.status_code)
             return 'Error, could not get delete the resource, revisit the log files for more details.'
 
-    def deleteSingleResource(self):
+    def delete_single_resource(self):
         raise NotImplemented  # TODO
 
-    def gatewayLogOff(self):
+    def gateway_log_off(self):
         print('Middleware log out successful ')
         # TODO
         pass
