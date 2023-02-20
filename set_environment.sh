@@ -29,7 +29,7 @@ export NETAPP_MODEL_VARIANT="yolov3_mobilenet"
 echo "NETAPP_MODEL_VARIANT set to $NETAPP_MODEL_VARIANT"
 
 # Torch device ('cpu', 'cuda', 'cuda:0', etc.)
-export NETAPP_TORCH_DEVICE="cuda"
+export NETAPP_TORCH_DEVICE="cpu"
 echo "NETAPP_TORCH_DEVICE set to $NETAPP_TORCH_DEVICE"
 
 
