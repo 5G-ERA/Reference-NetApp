@@ -1,6 +1,7 @@
 import traceback
 import math
 import time
+from threading import Thread, Event
 import cv2
 import signal
 from queue import Queue
@@ -8,12 +9,9 @@ import logging
 import os
 
 from era_5g_netapp_client.client import FailedToConnect, NetAppClient
-from era_5g_netapp_interface.common import ThreadBase, get_logger
 
 image_storage = dict()
 results_storage = Queue()
-
-logger = get_logger(log_level=logging.INFO)
 
 DEBUG_PRINT_SCORE = False  # useful for FPS detector
 DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiving the results
@@ -28,14 +26,18 @@ NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 TEST_VIDEO_FILE = os.getenv("TEST_VIDEO_FILE", "../../../../assets/2017_01_02_001021_s.mp4")
 
 
-class ResultsViewer(ThreadBase):
+class ResultsViewer(Thread):
 
-    def __init__(self, logger, name):
-        super().__init__(logger, name)
-        self.stopped = False
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.stop_event = Event()
+
+    def stop(self):
+        self.stop_event.set()
 
     def run(self):
-        while not self.stopped:
+        logging.info("Thread %s: starting", self.name)
+        while not self.stop_event.is_set():
             if not results_storage.empty():
                 results = results_storage.get(timeout=1)
                 timestamp = int(results['timestamp'])
@@ -85,8 +87,8 @@ def main():
     Creates the client class and starts the data transfer
     """
 
-    results_viewer = ResultsViewer(logger, "viewer")
-    results_viewer.start(daemon=False)
+    results_viewer = ResultsViewer(name="test_client_http_viewer", daemon=True)
+    results_viewer.start()
 
     client = None
     global stopped

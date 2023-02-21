@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Event
 from .data_sender_gstreamer import DataSenderGStreamer
 import cv2
 
@@ -10,7 +10,7 @@ class DataSenderGStreamerFromSource(Thread):
     """
 
     def __init__(self, ip: str, port: int, data_source: str, fps: float, width: int, height: int, resize: bool = True,
-                 threads: int = 1):
+                 threads: int = 1, **kw):
         """
         Constructor
 
@@ -30,6 +30,8 @@ class DataSenderGStreamerFromSource(Thread):
                 Defaults to 1.
         """
 
+        super().__init__(**kw)
+        self.stop_event = Event()
         # instantiate the base data sender object
         self.data_sender_gstreamer = DataSenderGStreamer(ip, port, fps, width, height)
 
@@ -38,22 +40,17 @@ class DataSenderGStreamerFromSource(Thread):
         if not self.cap.isOpened():
             raise Exception("Cannot open video stream")
 
-        self.stopped = False
-        self.alive = True
         self.resize = resize
-        t = Thread(target=self.run, args=())
-        t.daemon = True
-        t.start()
 
     def stop(self):
-        self.stopped = True
+        self.stop_event.set()
 
     def run(self):
         """
         Reads the data from the gstreamer source and sends it using the base data sender
         """
 
-        while not self.stopped:
+        while not self.stop_event.is_set():
             ret, frame = self.cap.read()
             if not ret:
                 break
@@ -63,5 +60,3 @@ class DataSenderGStreamerFromSource(Thread):
                 self.data_sender_gstreamer.send_image(resized)
             else:
                 self.data_sender_gstreamer.send_image(frame)
-
-        self.alive = False

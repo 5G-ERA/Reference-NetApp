@@ -6,11 +6,8 @@ import socketio
 from collections.abc import Callable
 import numpy as np
 from era_5g_netapp_client.middleware_resource_checker import MiddlewareResourceChecker
-from era_5g_netapp_interface.common import get_logger
 import logging
 import os
-
-logger = get_logger(logging.INFO)
 
 buffer = list()
 
@@ -111,9 +108,10 @@ class NetAppClient:
             self.plan = self.gateway_get_plan(self.task_id,
                                               self.resource_lock)  # Get the plan by sending the token and TaskId
             self.resource_checker = \
-                MiddlewareResourceChecker(logger, "resource_checker", self.token, self.action_plan_id,
-                                          self.build_middleware_api_endpoint("orchestrate/orchestrate/plan"))
-            self.resource_checker.start(daemon=True)
+                MiddlewareResourceChecker("resource_checker", self.token, self.action_plan_id,
+                                          self.build_middleware_api_endpoint("orchestrate/orchestrate/plan"),
+                                          daemon=True)
+            self.resource_checker.start()
             if self.use_middleware and self.wait_for_netapp:
                 self.wait_until_netapp_ready()
                 print(self.resource_checker.is_ready())
@@ -211,7 +209,7 @@ class NetAppClient:
         The callback called on connection error.
         """
         print(f"Connection error: {data}")
-        #self.disconnect()
+        # self.disconnect()
 
     def send_image(self, frame: np.ndarray, timestamp: str = None, batch_size: int = 1):
         """

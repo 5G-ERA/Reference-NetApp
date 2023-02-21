@@ -57,11 +57,14 @@ def main():
             data_src = f"v4l2src device=/dev/video0 ! video/x-raw, format=YUY2, width=640, height=480, " + \
                        "pixel-aspect-ratio=1/1 ! videoconvert ! appsink"
             sender = DataSenderGStreamerFromSource(client.netapp_host, client.gstreamer_port, data_src, 15, 640, 480,
-                                                   False)
+                                                   False, daemon=True)
+            sender.start()
         else:
             # or from file
-            sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, 15,
-                                                 TEST_VIDEO_FILE, 640, 480)
+            sender = DataSenderGStreamerFromFile(client.netapp_host, client.gstreamer_port, TEST_VIDEO_FILE, 15,
+                                                 640, 480, daemon=True)
+            sender.start()
+
         # waits infinitely
         client.wait()
     except FailedToConnect as ex:
@@ -69,7 +72,7 @@ def main():
     except KeyboardInterrupt:
         print("Terminating...")
     except Exception as ex:
-        #traceback.print_exc()
+        traceback.print_exc()
         print(f"Failed to create client instance ({ex})")
     finally:
         if client is not None:
