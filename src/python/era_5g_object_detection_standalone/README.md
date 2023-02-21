@@ -17,6 +17,30 @@ pip3 install .
 
 An era_5g_object_detection_standalone binary could be used to run the NetApp once the package is installed. 
 
+## Examples
+
+System environment variable that can be set, e.g.:
+
+```
+# port of the NetApp's server (default is 5896)
+export NETAPP_PORT=5897
+```
+
+Arguments:
+
+ - --ports
+ 
+   Specify the range of ports available for gstreamer connections. Format port_start:port_end. 
+   Default is 5001:5003.
+ 
+ - --detector
+
+   Select detector. Available options are opencv, mmdetection, fps. Default is fps.
+
+```bash
+python3 interface.py --detector mmdetection
+```
+
 ## Classes
 
 ### Worker (worker.py)
