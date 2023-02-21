@@ -4,16 +4,15 @@ import cv2
 import argparse
 import os
 import numpy as np
+import flask_socketio
+from flask import Flask, Response, request, session
+from flask_session import Session
 
 from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
-
-import flask_socketio
 from era_5g_netapp_interface.task_handler_gstreamer_internal_q import \
     TaskHandlerGstreamerInternalQ, TaskHandlerGstreamer
 from era_5g_netapp_interface.task_handler_internal_q import TaskHandlerInternalQ
-from flask import Flask, Response, request, session
 
-from flask_session import Session
 
 # port of the netapp's server
 NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
@@ -46,7 +45,7 @@ class ArgFormatError(Exception):
     pass
 
 
-@app.route('/register', methods=['GET'])
+@app.route('/register', methods=['POST'])
 def register():
     """
     Needs to be called before an attempt to open WS is made.
@@ -55,10 +54,10 @@ def register():
         _type_: The port used for gstreamer communication.
     """
     #print(f"register {session.sid} {session}")
-    #print(f"{request}")
-
-    args = request.args.to_dict()
-    gstreamer = args.get("gstreamer", False)
+    args = request.get_json(silent=True)
+    gstreamer = False
+    if args:
+        gstreamer = args.get("gstreamer", False)
 
     if gstreamer and not free_ports:
         return {"error": "Not enough resources"}, 503
@@ -81,7 +80,7 @@ def register():
         return Response(status=204)
 
 
-@app.route('/unregister', methods=['GET'])
+@app.route('/unregister', methods=['POST'])
 def unregister():
     """_
     Disconnects the websocket and removes the task from the memory.

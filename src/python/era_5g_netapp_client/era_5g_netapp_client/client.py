@@ -79,7 +79,7 @@ class NetAppClient:
         self.action_seq_ids = []
 
         self.sio = socketio.Client()
-        self.s = requests.session()
+        self.session = requests.session()
         self.host = host.rstrip('/') if host is not None else None
         self.resource_lock = resource_lock
         self.netapp_host = netapp_uri
@@ -121,14 +121,14 @@ class NetAppClient:
             self.delete_all_resources()
             raise ex
 
-    def register(self, args=None) -> Response:
+    def register(self, json=None) -> Response:
         """
         Calls the /register endpoint of the NetApp interface and if the 
         registration is successful, it sets up the WebSocket connection
         for results retrieval.
 
         Args:
-            args (dict): optional parameters to be passed to 
+            json (dict): optional parameters to be passed to
             the NetApp, in the form of dict. Defaults to None.
 
         Returns:
@@ -137,7 +137,8 @@ class NetAppClient:
         if self.use_middleware and not self.resource_checker.is_ready:
             raise NetAppNotReady
 
-        response = self.s.get(self.build_netapp_api_endpoint("register"), params=args)
+        response = self.session.post(self.build_netapp_api_endpoint("register"), json=json,
+                                     headers={'Content-Type': 'application/json'})
 
         # checks whether the NetApp responded with any data
         if len(response.content) > 0:
@@ -163,7 +164,7 @@ class NetAppClient:
         WebSocket connection.
         """
         if self.netapp_host is not None and self.netapp_port is not None:
-            self.s.get(self.build_netapp_api_endpoint("unregister"))
+            self.session.post(self.build_netapp_api_endpoint("unregister"))
         self.sio.disconnect()
         if self.use_middleware:
             self.delete_all_resources()
@@ -233,8 +234,8 @@ class NetAppClient:
         if len(buffer) == batch_size:
             files = [('files', (f'image{i + 1}', buffer[i][0], 'image/jpeg')) for i in range(batch_size)]
             timestamps = [b[1] for b in buffer]
-            self.s.post(self.build_netapp_api_endpoint("image"), files=files,
-                        params={"timestamps[]": timestamps})
+            self.session.post(self.build_netapp_api_endpoint("image"), files=files,
+                              params={"timestamps[]": timestamps})
             buffer.clear()
 
     def wait_until_netapp_ready(self):
