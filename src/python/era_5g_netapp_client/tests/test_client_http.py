@@ -7,6 +7,11 @@ import signal
 from queue import Queue
 import logging
 import os
+import numpy as np
+
+# for decoding masks
+import base64
+import pycocotools.mask as masks_util
 
 from era_5g_netapp_client.client import FailedToConnect, NetAppClient
 
@@ -15,6 +20,7 @@ results_storage = Queue()
 
 DEBUG_PRINT_SCORE = False  # useful for FPS detector
 DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiving the results
+DEBUG_DRAW_MASKS = True  # draw segmentation masks (if provided by detector)
 
 # Video from source flag
 FROM_SOURCE = False
@@ -58,6 +64,14 @@ class ResultsViewer(Thread):
                         font = cv2.FONT_HERSHEY_SIMPLEX
                         cv2.putText(frame, f"{cls_name} ({score * 100:.0f})%", (x1, y1 - 5), font, .5, (0, 255, 0), 1,
                                     cv2.LINE_AA)
+
+                        if "mask" in d and DEBUG_DRAW_MASKS:
+                            encoded_mask = d["mask"]
+                            encoded_mask["counts"] = base64.b64decode(encoded_mask["counts"])  # Base64 decode
+                            mask = masks_util.decode(encoded_mask).astype(bool)  # RLE decode
+                            color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
+                            frame[mask] = frame[mask] * 0.5 + color_mask * 0.5
+
                     try:
                         cv2.imshow("Results", frame)
                         cv2.waitKey(1)
