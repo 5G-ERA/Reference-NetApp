@@ -15,7 +15,7 @@ class FaceDetector(ImageDetector, ABC):
     Basic face detector based on OpenCV Haar-cascade Detection.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kw):
         """
         Constructor
 
@@ -27,7 +27,7 @@ class FaceDetector(ImageDetector, ABC):
                 required parameter is not set.
         """
 
-        super().__init__(**kwargs)
+        super().__init__(**kw)
         print("face_detector")
         if MODEL_FILE is None:
             raise ImageDetectorInitializationFailed(

@@ -12,7 +12,7 @@ class FpsTestDetector(ImageDetector, ABC):
     Debug detector which returns the framerate of received stream.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kw):
         """
         Constructor
 
@@ -20,7 +20,7 @@ class FpsTestDetector(ImageDetector, ABC):
             name (str): The name of the thread.
         """
 
-        super().__init__(**kwargs)
+        super().__init__(**kw)
         print("fps_test_detector")
         self.start_time = time.time()
         self.frames = 0

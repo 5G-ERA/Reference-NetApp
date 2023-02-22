@@ -17,7 +17,7 @@ class MMDetector(ImageDetector, ABC):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kw):
         """
         Constructor
 
@@ -29,7 +29,7 @@ class MMDetector(ImageDetector, ABC):
                 required parameter is not set.
         """
 
-        super().__init__(**kwargs)
+        super().__init__(**kw)
         # path to the folder where the mmdet module is installed
         self.path_to_mmdet = os.getenv("NETAPP_MMDET_PATH", None)
         # the selected model variant, possible values are listed in era_5g_object_detection_common.mmdet_utils
