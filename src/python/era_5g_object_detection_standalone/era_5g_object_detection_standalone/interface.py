@@ -9,9 +9,9 @@ from flask import Flask, Response, request, session
 from flask_session import Session
 
 from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
-from era_5g_netapp_interface.task_handler_gstreamer_internal_q import \
+from era_5g_interface.task_handler_gstreamer_internal_q import \
     TaskHandlerGstreamerInternalQ, TaskHandlerGstreamer
-from era_5g_netapp_interface.task_handler_internal_q import TaskHandlerInternalQ
+from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
 
 
 # port of the netapp's server
