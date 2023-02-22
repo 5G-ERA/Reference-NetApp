@@ -33,7 +33,7 @@ tasks = dict()
 jobs_info_queue = Queue(1024)
 
 
-@app.route('/register', methods=['GET'])
+@app.route('/register', methods=['POST'])
 def register():
     """
     Needs to be called before an attempt to open WS is made.
@@ -55,7 +55,7 @@ def register():
     return {"port": port}, 200
 
 
-@app.route('/unregister', methods=['GET'])
+@app.route('/unregister', methods=['POST'])
 def unregister():
     """_
     Disconnects the websocket and removes the task from the memory.
@@ -104,6 +104,9 @@ def disconnect(sid):
 def main(args=None):
     # creates a results' reader, which periodically reads status of jobs in jobs_info_queue
     # to find finished jobs and pass the results to the robot
+
+    logging.getLogger().setLevel(logging.INFO)
+
     results_reader = ResultsReader(jobs_info_queue, app, name="results_reader", daemon=True)
     results_reader.start()
 

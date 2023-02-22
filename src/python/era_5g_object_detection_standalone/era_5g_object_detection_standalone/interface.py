@@ -7,6 +7,7 @@ import numpy as np
 import flask_socketio
 from flask import Flask, Response, request, session
 from flask_session import Session
+import logging
 
 from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
 from era_5g_interface.task_handler_gstreamer_internal_q import \
@@ -150,6 +151,7 @@ def connect(auth):
     print(f"Client connected: session id: {session.sid}, websocket id: {sid}")
     tasks[session.sid].websocket_id = sid
     tasks[session.sid].start()
+    # TODO: Check task is running, Gstreamer capture can failed
     flask_socketio.send("You are connected", namespace='/results', to=sid)
 
 
@@ -185,6 +187,8 @@ def main(args=None):
     except ArgFormatError:
         print("Port range specified in wrong format. The correct format is port_start:port_end, e.g. 5001:5003.")
         exit()
+
+    logging.getLogger().setLevel(logging.INFO)
 
     # Creates detector and runs it as thread, listening to image_queue
     try:
