@@ -1,6 +1,6 @@
 from threading import Thread
 from queue import Full, Queue
-from era_5g_netapp_interface.task_handler_gstreamer import TaskHandlerGstreamer
+from era_5g_interface.task_handler_gstreamer import TaskHandlerGstreamer
 from era_5g_object_detection_distributed_worker import detector_task
 
 

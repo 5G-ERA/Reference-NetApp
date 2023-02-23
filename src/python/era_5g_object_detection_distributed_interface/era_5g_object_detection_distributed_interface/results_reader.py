@@ -64,7 +64,7 @@ class ResultsReader(Thread):
 
                 elif job.state == "FAILURE":
                     jobs_to_remove.add(job)
-                    logging.info(f"Task {job.task_id} failed.")
+                    logging.error(f"Task {job.task_id} failed.")
                     # TODO: optional error handling
 
             # Remove completed jobs

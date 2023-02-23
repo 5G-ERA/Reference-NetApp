@@ -50,10 +50,6 @@ class ImageDetector(Thread, ABC):
         """
         This method is responsible for returning results back to the robot. 
 
-        Args:
-            data (_type_): The results to be returned to the robot. The format is
-                NetApp-specific.
-
         Raises:
             NotImplemented
         """
