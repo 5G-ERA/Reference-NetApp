@@ -12,14 +12,11 @@ cd
 cp -r /srv/opencv ~
 pip3 install ~/opencv/*.whl
 
-cd Reference-NetApp/src/python/era_5g_netapp_client
-pip3 install -r requirement.txt
-pip3 install -e .
+# Install client from era-5g-client repository
 
-cd ../era_5g_netapp_interface
-pip3 install -e .
+# Install NetApp interface from era-5g-interface repository
 
-cd ../era_5g_object_detection_common
+cd Reference-NetApp/src/python/era_5g_object_detection_common
 pip3 install -r requirement.txt
 pip3 install -e .
 
