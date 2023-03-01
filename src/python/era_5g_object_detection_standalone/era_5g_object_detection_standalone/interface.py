@@ -1,3 +1,5 @@
+import base64
+import binascii
 import secrets
 from queue import Queue
 import cv2
@@ -40,7 +42,6 @@ image_queue = Queue(30)
 
 # the image detector to be used
 detector_thread = None
-
 
 class ArgFormatError(Exception):
     pass
@@ -104,11 +105,13 @@ def unregister():
 
 
 @app.route('/image', methods=['POST'])
-def post_image():
+def image_callback_http():
     """
     Allows to receive jpg-encoded image using the HTTP transport
     """
-
+    if 'registered' not in session:
+        return Response('Need to call /register first.', 401)
+    
     sid = session.sid
     task = tasks[sid]
 
@@ -120,18 +123,110 @@ def post_image():
     index = 0
     for file in request.files.to_dict(flat=False)['files']:
         # print(file)
-        nparr = np.fromstring(file.read(), np.uint8)
-        # decode image
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        nparr = np.frombuffer(file.read(), np.uint8)
 
         # store the image to the appropriate task
-        task.store_image({"sid": sid, "websocket_id": task.websocket_id, "timestamp": timestamps[index]}, img)
+        # the image is not decoded here to make the callback as fast as possible
+        task.store_image({"sid": sid, 
+                          "websocket_id": task.websocket_id, 
+                          "timestamp": timestamps[index], 
+                          "decoded": False}, 
+                         nparr)
         index += 1
     return Response(status=204)
 
+@socketio.on('connect', namespace='/data')
+def connect_data(auth):
+    """_summary_
+    Creates a websocket connection to the client for passing the data.
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first.
+    """
+
+    if 'registered' not in session:
+        raise ConnectionRefusedError('Need to call /register first.')
+    
+    print(f"Connected data. Session id: {session.sid}, ws_sid: {request.sid}")
+    
+    flask_socketio.send("you are connected", namespace='/data', to=request.sid)
+
+@socketio.on('image', namespace='/data')
+def image_callback_websocket(data: dict):
+    """
+    Allows to receive jpg-encoded image using the websocket transport
+
+    Args:
+        data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
+            {'frame': 'base64data', 'timestamp': 'int'}
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first or frame was not passed in correct format.
+    """
+    logging.debug("A frame recieved using ws")
+    if 'timestamp' in data:
+        timestamp = data['timestamp']
+    else:
+        logging.debug("Timestamp not set, setting default value")
+        timestamp = 0
+    if 'registered' not in session:
+        logging.error(f"Non-registered client tried to send data")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": "Need to call /register first."}, 
+                            namespace='/data', 
+                            to=request.sid)
+        return
+    if 'frame' not in data:
+        logging.error(f"Data does not contain frame.")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": "Data does not contain frame."}, 
+                            namespace='/data', 
+                            to=request.sid)
+        return
+
+    task = tasks[session.sid]
+    try:
+        frame = base64.b64decode(data["frame"])
+        task.store_image({"sid": session.sid, 
+                          "websocket_id": task.websocket_id, 
+                          "timestamp": timestamp, 
+                          "decoded": False}, 
+                         np.frombuffer(frame, dtype=np.uint8))
+    except (ValueError, binascii.Error) as error:
+        logging.error(f"Failed to decode frame data: {error}")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": f"Failed to decode frame data: {error}"}, 
+                            namespace='/data', 
+                            to=request.sid)
+
+@socketio.on('json', namespace='/data')
+def json_callback_websocket(data):
+    """
+    Allows to receive general json data using the websocket transport
+
+    Args:
+        data (dict): NetApp-specific json data
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first.
+    """
+    if 'registered' not in session:
+        logging.error(f"Non-registered client tried to send data")
+        flask_socketio.emit("json_error", 
+                            {"error": "Need to call /register first."}, 
+                            namespace='/data', 
+                            to=request.sid)
+    logging.debug(f"client with task id: {session.sid} sent data {data}")
+    
 
 @socketio.on('connect', namespace='/results')
-def connect(auth):
+def connect_results(auth):
     """
     Creates a websocket connection to the client for passing the results.
 
@@ -156,13 +251,27 @@ def connect(auth):
 
 
 @socketio.on('disconnect', namespace='/results')
-def disconnect():
-    #print(f"disconnect {session.sid} {session}")
-    #print(f"{request.sid} {request}")
-    print(f"Client disconnected: session id: {session.sid}, websocket id: {request.sid}")
+def disconnect_results():
+    print(f"Client disconnected from /results namespace: session id: {session.sid}, websocket id: {request.sid}")
+
+@socketio.on('disconnect', namespace='/data')
+def disconnect_data():
+    print(f"Client disconnected from /data namespace: session id: {session.sid}, websocket id: {request.sid}")
 
 
-def get_ports_range(ports_range):
+def get_ports_range(ports_range) -> list:
+    """
+    Decodes port range in format port_1:port_n
+
+    Args:
+        ports_range (str): range of ports
+
+    Raises:
+        ArgFormatError: raised when ports range is in incorrect format
+
+    Returns:
+        list: list of ports
+    """
     if ports_range.count(':') != 1:
         raise ArgFormatError
     r1, r2 = ports_range.split(':')
@@ -173,6 +282,8 @@ def get_ports_range(ports_range):
 
 def main(args=None):
     parser = argparse.ArgumentParser(description='Standalone variant of object detection NetApp')
+    # TODO: in future versions, the ports should be specified as list instead of range, preferably
+    #       using env variable, for compatibility with middleware
     parser.add_argument('--ports',
                         default="5001:5003",
                         help="Specify the range of ports available for gstreamer connections. Format "
@@ -188,7 +299,7 @@ def main(args=None):
         print("Port range specified in wrong format. The correct format is port_start:port_end, e.g. 5001:5003.")
         exit()
 
-    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     # Creates detector and runs it as thread, listening to image_queue
     try:

@@ -42,7 +42,12 @@ class Worker(ImageDetector, ABC):
             except Empty:
                 continue
 
-            detections = self.process_image(image)
+            if metadata.get("decoded", True):
+                detections = self.process_image(image)
+            else: 
+                # decode image
+                img = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                detections = self.process_image(img)
 
             self.publish_results(detections, metadata)
 
