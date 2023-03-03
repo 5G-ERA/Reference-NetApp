@@ -1,6 +1,6 @@
 FROM but5gera/netapp_base_gstreamer:0.1.1
 
-FROM but5gera/netapp_base_mmcv_cpu:0.1.0
+FROM but5gera/netapp_base_mmcv_gpu:0.1.3
 
 RUN mkdir -p /root/opencv
 
@@ -48,7 +48,7 @@ COPY docker/era_5g_object_detection_standalone/start.sh /root/start.sh
 RUN chmod +x /root/start.sh
 
 ENV NETAPP_MODEL_VARIANT=yolov3_mobilenet
-ENV NETAPP_TORCH_DEVICE=cpu
+ENV NETAPP_TORCH_DEVICE=cuda:0
 	
 EXPOSE 5896
 EXPOSE 5001 5002 5003

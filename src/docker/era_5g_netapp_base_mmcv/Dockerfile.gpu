@@ -1,12 +1,18 @@
-FROM python:3.8-slim
+# cuda 11.7 required by mmdetection and PyTorch
+FROM nvidia/cuda:11.7.1-base-ubuntu20.04 
+
 
 RUN apt-get update \ 
     && apt-get install -y python3-pip git wget
 
-# CPU version
-RUN pip3 install torch===1.13.1+cpu torchvision===0.14.1+cpu torchaudio===0.13.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+# GPU version
+RUN pip install torch===1.13.1+cu117 torchvision===0.14.1+cu117 torchaudio===0.13.1+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
 
-RUN pip3 install mmcv-full==1.5.2
+RUN pip install --upgrade pip wheel
+
+RUN cd /root/ \
+    && wget https://nextcloud.fit.vutbr.cz/s/Ws4PPtAR8XA6SR7/download/mmcv_full-1.5.2-cp38-cp38-linux_x86_64.whl \
+    && pip install mmcv_full-1.5.2-cp38-cp38-linux_x86_64.whl
 
 RUN cd /root/ \
     && git clone -b v2.25.0 https://github.com/open-mmlab/mmdetection.git
