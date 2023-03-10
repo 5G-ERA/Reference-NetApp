@@ -56,8 +56,8 @@ def results_callback(data):
                 cv2.LINE_AA,
             )
         
-        im_bgr = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  
-        results_pub.publish(bridge.cv2_to_imgmsg(im_bgr, encoding='rgb8'))
+        im_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  
+        results_pub.publish(bridge.cv2_to_imgmsg(im_rgb, encoding='rgb8'))
         # remove all images with older timestamps than last received result 
         image_buffer = {k:v for k, v in image_buffer.items() if k > timestamp}
         
@@ -80,11 +80,13 @@ def image_callback(image):
 if __name__ == '__main__':
     try:
         rospy.init_node("netapp_client")
-        # create the client (or use NetAppClient if you dont want to use gstreamer)
-        client = NetAppClient(
-            MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, MIDDLEWARE_TASK_ID, True, results_callback, True, True
-        )
-        client.register()
+        # create an instance of NetApp client with results callback
+        client = NetAppClient(results_callback)
+        # authenticates with the middleware
+        client.connect_to_middleware(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, True)
+        # run task, wait untill is ready and register with it
+        client.run_task(MIDDLEWARE_TASK_ID, wait_for_netapp=True, register=True)
+        
         # data sender is only needed when gstreamer is used
         # data_sender = DataSenderGStreamer(server_ip, client.gstreamer_port, 30)
 

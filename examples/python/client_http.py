@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 import pycocotools.mask as masks_util  # for decoding masks
 
-from era_5g_client.client_base import NetAppClientBase
+from era_5g_client.client import NetAppClient
 from era_5g_client.exceptions import FailedToConnect
 
 image_storage: Dict[str, np.ndarray] = dict()
@@ -27,12 +27,17 @@ DEBUG_PRINT_SCORE = False  # useful for FPS detector
 DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiving the results
 DEBUG_DRAW_MASKS = True  # draw segmentation masks (if provided by detector)
 
+
+MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
+# middleware user
+MIDDLEWARE_USER = os.getenv("MIDDLEWARE_USER", "00000000-0000-0000-0000-000000000000")
+# middleware password
+MIDDLEWARE_PASSWORD = os.getenv("MIDDLEWARE_PASSWORD", "password")
+# middleware NetApp id (task id)
+MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-000000000000")
+
 # Video from source flag
 FROM_SOURCE = False
-# ip address or hostname of the computer, where the netapp is deployed
-NETAPP_ADDRESS = os.getenv("NETAPP_ADDRESS", "127.0.0.1")
-# port of the netapp's server
-NETAPP_PORT = int(os.getenv("NETAPP_PORT", 5896))
 # test video file
 try:
     TEST_VIDEO_FILE = os.environ["TEST_VIDEO_FILE"]
@@ -130,16 +135,21 @@ def main() -> None:
         global stopped
         stopped = True
         results_viewer.stop()
+        if client is not None:
+            client.disconnect()
         print(f"Terminating ({signal.Signals(sig).name})...")
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        # creates an instance of NetApp client with results callback
-        client = NetAppClientBase(get_results)
-        # register with an ad-hoc deployed NetApp
-        client.register(NETAPP_ADDRESS, NETAPP_PORT, ws_data=True)
+        # create an instance of NetApp client with results callback
+        client = NetAppClient(get_results)
+        # authenticates with the middleware
+        client.connect_to_middleware(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, True)
+        # run task, wait untill is ready and register with it
+        client.run_task(MIDDLEWARE_TASK_ID, wait_for_netapp=True, register=True)
+
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
             cap = cv2.VideoCapture(0)
