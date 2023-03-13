@@ -1,8 +1,6 @@
-import os
 import numpy as np
 import base64
 
-import mmcv
 import pycocotools.mask as masks_util
 from mmdet.core import get_classes
 
