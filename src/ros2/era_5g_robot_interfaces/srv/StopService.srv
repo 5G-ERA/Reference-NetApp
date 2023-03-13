@@ -1,4 +1,0 @@
-string service_base_name # Unused
----
-bool success
-string message
