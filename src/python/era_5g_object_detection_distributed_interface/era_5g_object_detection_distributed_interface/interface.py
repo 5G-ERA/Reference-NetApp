@@ -1,12 +1,19 @@
+import base64
+import binascii
 import os
 import logging
 import secrets
 from queue import Queue
+
+from era_5g_interface.task_handler_gstreamer import TaskHandlerGstreamer
+import numpy as np
 from era_5g_object_detection_distributed_interface.results_reader import ResultsReader
 
 import flask_socketio
-from era_5g_object_detection_distributed_interface.task_handler_gstreamer_rabbitmq_redis import \
-    TaskHandlerGstreamerRabbitmqRedis as TaskHandler
+from era_5g_object_detection_distributed_interface.task_handler_gstreamer_distributed import \
+    TaskHandlerGstreamerDistributed
+from era_5g_object_detection_distributed_interface.task_handler_distributed import \
+    TaskHandlerDistributed
 from flask import Flask, Response, request, session
 
 from flask_session import Session
@@ -41,19 +48,33 @@ def register():
     Returns:
         _type_: The port used for gstreamer communication.
     """
+
+    args = request.get_json(silent=True)
+    gstreamer = False
+    if args:
+        gstreamer = args.get("gstreamer", False)
+
+    if gstreamer and not free_ports:
+        return {"error": "Not enough resources"}, 503
     if not free_ports:
         return {"error": "Not enough resources"}, 503
-
-    # gets a free gstreamer port (if there is any)
-    port = free_ports.pop(0)
+    
     session['registered'] = True
-    # creates task handler and save it under the session_id for future reference
-    task = TaskHandler(session.sid, port, jobs_info_queue, daemon=True)
+
+    # select the appropriate task handler, depends on whether the client wants to use
+    # gstreamer to pass the images or not 
+    if gstreamer:
+        port = free_ports.pop(0)
+        task = TaskHandlerGstreamerDistributed(session.sid, port, jobs_info_queue, daemon=True)
+    else:
+        task = TaskHandlerDistributed(session.sid, jobs_info_queue, daemon=True)
+
     tasks[session.sid] = task
-
     print(f"Client registered: {session.sid}")
-    return {"port": port}, 200
-
+    if gstreamer:
+        return {"port": port}, 200
+    else:
+        return Response(status=204)
 
 @app.route('/unregister', methods=['POST'])
 def unregister():
@@ -69,14 +90,98 @@ def unregister():
         task = tasks.pop(session.sid)
         task.stop()
         flask_socketio.disconnect(task.websocket_id, namespace="/results")
-        free_ports.append(task.port)
+        if isinstance(task, TaskHandlerGstreamer):
+            free_ports.append(task.port)
         print(f"Client unregistered: {session_id}")
 
     return Response(status=204)
 
+@app.route('/image', methods=['POST'])
+def image_callback_http():
+    """
+    Allows to receive jpg-encoded image using the HTTP transport
+    """
+    if 'registered' not in session:
+        return Response('Need to call /register first.', 401)
+    
+    sid = session.sid
+    task = tasks[sid]
+
+    if "timestamps[]" in request.args:
+        timestamps = request.args.to_dict(flat=False)['timestamps[]']
+    else:
+        timestamps = []
+    # convert string of image data to uint8
+    index = 0
+    for file in request.files.to_dict(flat=False)['files']:
+        # print(file)
+        nparr = np.frombuffer(file.read(), np.uint8)
+
+        # store the image to the appropriate task
+        # the image is not decoded here to make the callback as fast as possible
+        task.store_image({"sid": sid, 
+                          "websocket_id": task.websocket_id, 
+                          "timestamp": timestamps[index], 
+                          "decoded": False}, 
+                         nparr)
+        index += 1
+    return Response(status=204)
+
+
+@socketio.on('image', namespace='/data')
+def image_callback_websocket(data: dict):
+    """
+    Allows to receive jpg-encoded image using the websocket transport
+
+    Args:
+        data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
+            {'frame': 'base64data', 'timestamp': 'int'}
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first or frame was not passed in correct format.
+    """
+    logging.debug("A frame recieved using ws")
+    if 'timestamp' in data:
+        timestamp = data['timestamp']
+    else:
+        logging.debug("Timestamp not set, setting default value")
+        timestamp = 0
+    if 'registered' not in session:
+        logging.error(f"Non-registered client tried to send data")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": "Need to call /register first."}, 
+                            namespace='/data', 
+                            to=request.sid)
+        return
+    if 'frame' not in data:
+        logging.error(f"Data does not contain frame.")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": "Data does not contain frame."}, 
+                            namespace='/data', 
+                            to=request.sid)
+        return
+
+    task = tasks[session.sid]
+    try:
+        frame = base64.b64decode(data["frame"])
+        task.store_image({"sid": session.sid, 
+                          "websocket_id": task.websocket_id, 
+                          "timestamp": timestamp, 
+                          "decoded": False}, 
+                         np.frombuffer(frame, dtype=np.uint8))
+    except (ValueError, binascii.Error) as error:
+        logging.error(f"Failed to decode frame data: {error}")
+        flask_socketio.emit("image_error", 
+                            {"timestamp": timestamp, 
+                             "error": f"Failed to decode frame data: {error}"}, 
+                            namespace='/data', 
+                            to=request.sid)
 
 @socketio.on('connect', namespace='/results')
-def connect(auth):
+def connect_results(auth):
     """
     Creates a websocket connection to the client for passing the results.
 
@@ -95,11 +200,31 @@ def connect(auth):
     tasks[session.sid].start()
     flask_socketio.send("you are connected", namespace='/results', to=sid)
 
+@socketio.on('connect', namespace='/data')
+def connect_data(auth):
+    """_summary_
+    Creates a websocket connection to the client for passing the data.
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first.
+    """
+    print("connectes")
+    if 'registered' not in session:
+        raise ConnectionRefusedError('Need to call /register first.')
+    
+    print(f"Connected data. Session id: {session.sid}, ws_sid: {request.sid}")
+    
+    flask_socketio.send("you are connected", namespace='/data', to=request.sid)
+
 
 @socketio.event
-def disconnect(sid):
-    print('disconnect ', sid)
+def disconnect_results(sid):
+    print(f"Client disconnected from /results namespace: session id: {session.sid}, websocket id: {request.sid}")
 
+@socketio.on('disconnect', namespace='/data')
+def disconnect_data():
+    print(f"Client disconnected from /data namespace: session id: {session.sid}, websocket id: {request.sid}")
 
 def main(args=None):
     # creates a results' reader, which periodically reads status of jobs in jobs_info_queue

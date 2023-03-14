@@ -1,15 +1,17 @@
 from threading import Thread
 from queue import Full, Queue
-from era_5g_interface.task_handler_gstreamer import TaskHandlerGstreamer
+import cv2
+from era_5g_interface.task_handler import TaskHandler
 from era_5g_object_detection_distributed_worker import detector_task
+from abc import ABC
 
 
-class TaskHandlerGstreamerRabbitmqRedis(TaskHandlerGstreamer):
+class TaskHandlerDistributed(TaskHandler, ABC):
     """
     Task handler which stores the retrieved images to the RabbitMQ broker.
     """
 
-    def __init__(self, sid: str, port: int, jobs_info_queue: Queue):
+    def __init__(self, sid: str, jobs_info_queue: Queue, **kw):
         """
         Constructor
 
@@ -20,7 +22,7 @@ class TaskHandlerGstreamerRabbitmqRedis(TaskHandlerGstreamer):
             jobs_info_queue (Queue): Queue with all to-be-processed jobs.
         """
 
-        super().__init__(sid, port)
+        super().__init__(sid, **kw)
         self._jobs_info_queue = jobs_info_queue
 
     def store_image(self, metadata, image):
@@ -33,7 +35,13 @@ class TaskHandlerGstreamerRabbitmqRedis(TaskHandlerGstreamer):
             image (_type_): The image to be processed.
         """
 
-        job_data = (metadata, image)
+        
+        if metadata.get("decoded", True):
+            job_data = (metadata, image)
+        else: 
+            # decode image
+            img = cv2.imdecode(image, cv2.IMREAD_COLOR)            
+            job_data = (metadata, img)
         # Start asynchronous Celery task
         job = detector_task.delay(job_data)
         try:
@@ -42,3 +50,6 @@ class TaskHandlerGstreamerRabbitmqRedis(TaskHandlerGstreamer):
         except Full:
             job.revoke()
             return
+
+    def run(self) -> None:
+        pass

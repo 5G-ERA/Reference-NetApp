@@ -71,7 +71,7 @@ class ResultsReader(Thread):
             if len(jobs_to_remove):
                 self.jobs_in_process = [job for job in self.jobs_in_process if job not in jobs_to_remove]
             else:
-                sleep(0.02)
+                sleep(0.01)
 
         print(f"job called: {job}")
 
@@ -85,18 +85,20 @@ class ResultsReader(Thread):
         """
 
         detections = list()
-        for (bbox, score, cls_id, cls_name) in results:
-            det = dict()
-            det["bbox"] = [float(i) for i in bbox]
-            det["score"] = float(score)
-            det["class"] = int(cls_id)
-            det["class_name"] = str(cls_name)
+        if results is not None:
+            for (bbox, score, cls_id, cls_name) in results:
+                det = dict()
+                det["bbox"] = [float(i) for i in bbox]
+                det["score"] = float(score)
+                det["class"] = int(cls_id)
+                det["class_name"] = str(cls_name)
 
-            detections.append(det)
-        # adds timestamp to the results
-        r = {"timestamp": metadata["timestamp"],
-             "detections": detections}
+                detections.append(det)
 
-        # use the flask app to return the results
-        with self.app.app_context():
-            flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
+            r = {"timestamp": metadata["timestamp"],
+                 "detections": detections}
+        
+
+            # use the flask app to return the results
+            with self.app.app_context():
+                flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
