@@ -67,8 +67,8 @@ class ResultsViewer(Thread):
                 timestamp_str = results["timestamp"]
                 timestamp = int(timestamp_str)
                 if DEBUG_PRINT_DELAY:
-                    time_now = math.floor(time.time() * 100)
-                    print(f"{(time_now - timestamp) / 100.}s delay")
+                    time_now = time.time_ns()
+                    print(f"{(time_now - timestamp) * 1.0e-9:.3f}s delay")
                 try:
                     frame = image_storage.pop(timestamp_str)
                     detections = results["detections"]
@@ -166,7 +166,7 @@ def main() -> None:
 
         while not stopped:
             ret, frame = cap.read()
-            timestamp = math.floor(time.time() * 100)
+            timestamp = time.time_ns()
             if not ret:
                 break
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)

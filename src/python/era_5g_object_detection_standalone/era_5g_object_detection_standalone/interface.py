@@ -16,7 +16,6 @@ from era_5g_interface.task_handler_gstreamer_internal_q import \
     TaskHandlerGstreamerInternalQ, TaskHandlerGstreamer
 from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
 
-
 # port of the netapp's server
 NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 
@@ -43,6 +42,7 @@ image_queue = Queue(30)
 # the image detector to be used
 detector_thread = None
 
+
 class ArgFormatError(Exception):
     pass
 
@@ -55,7 +55,7 @@ def register():
     Returns:
         _type_: The port used for gstreamer communication.
     """
-    #print(f"register {session.sid} {session}")
+    # print(f"register {session.sid} {session}")
     args = request.get_json(silent=True)
     gstreamer = False
     if args:
@@ -91,8 +91,8 @@ def unregister():
         _type_: 204 status
     """
     session_id = session.sid
-    #print(f"unregister {session.sid} {session}")
-    #print(f"{request}")
+    # print(f"unregister {session.sid} {session}")
+    # print(f"{request}")
     if session.pop('registered', None):
         task = tasks.pop(session.sid)
         task.stop()
@@ -111,7 +111,7 @@ def image_callback_http():
     """
     if 'registered' not in session:
         return Response('Need to call /register first.', 401)
-    
+
     sid = session.sid
     task = tasks[sid]
 
@@ -127,13 +127,16 @@ def image_callback_http():
 
         # store the image to the appropriate task
         # the image is not decoded here to make the callback as fast as possible
-        task.store_image({"sid": sid, 
-                          "websocket_id": task.websocket_id, 
-                          "timestamp": timestamps[index], 
-                          "decoded": False}, 
-                         nparr)
+        task.store_image(
+            {"sid": sid,
+             "websocket_id": task.websocket_id,
+             "timestamp": timestamps[index],
+             "decoded": False},
+            nparr
+            )
         index += 1
     return Response(status=204)
+
 
 @socketio.on('connect', namespace='/data')
 def connect_data(auth):
@@ -147,10 +150,11 @@ def connect_data(auth):
 
     if 'registered' not in session:
         raise ConnectionRefusedError('Need to call /register first.')
-    
+
     print(f"Connected data. Session id: {session.sid}, ws_sid: {request.sid}")
-    
+
     flask_socketio.send("you are connected", namespace='/data', to=request.sid)
+
 
 @socketio.on('image', namespace='/data')
 def image_callback_websocket(data: dict):
@@ -173,36 +177,45 @@ def image_callback_websocket(data: dict):
         timestamp = 0
     if 'registered' not in session:
         logging.error(f"Non-registered client tried to send data")
-        flask_socketio.emit("image_error", 
-                            {"timestamp": timestamp, 
-                             "error": "Need to call /register first."}, 
-                            namespace='/data', 
-                            to=request.sid)
+        flask_socketio.emit(
+            "image_error",
+            {"timestamp": timestamp,
+             "error": "Need to call /register first."},
+            namespace='/data',
+            to=request.sid
+            )
         return
     if 'frame' not in data:
         logging.error(f"Data does not contain frame.")
-        flask_socketio.emit("image_error", 
-                            {"timestamp": timestamp, 
-                             "error": "Data does not contain frame."}, 
-                            namespace='/data', 
-                            to=request.sid)
+        flask_socketio.emit(
+            "image_error",
+            {"timestamp": timestamp,
+             "error": "Data does not contain frame."},
+            namespace='/data',
+            to=request.sid
+            )
         return
 
     task = tasks[session.sid]
     try:
         frame = base64.b64decode(data["frame"])
-        task.store_image({"sid": session.sid, 
-                          "websocket_id": task.websocket_id, 
-                          "timestamp": timestamp, 
-                          "decoded": False}, 
-                         np.frombuffer(frame, dtype=np.uint8))
+        task.store_image(
+            {"sid": session.sid,
+             "websocket_id": task.websocket_id,
+             "timestamp": timestamp,
+             "decoded": False},
+            np.frombuffer(frame, dtype=np.uint8)
+            )
     except (ValueError, binascii.Error) as error:
         logging.error(f"Failed to decode frame data: {error}")
-        flask_socketio.emit("image_error", 
-                            {"timestamp": timestamp, 
-                             "error": f"Failed to decode frame data: {error}"}, 
-                            namespace='/data', 
-                            to=request.sid)
+        flask_socketio.emit(
+            "image_error",
+            {"timestamp": timestamp,
+             "error": f"Failed to decode frame data: {error}"},
+            namespace='/data',
+            to=request.sid
+            )
+
 
 @socketio.on('json', namespace='/data')
 def json_callback_websocket(data):
@@ -218,12 +231,14 @@ def json_callback_websocket(data):
     """
     if 'registered' not in session:
         logging.error(f"Non-registered client tried to send data")
-        flask_socketio.emit("json_error", 
-                            {"error": "Need to call /register first."}, 
-                            namespace='/data', 
-                            to=request.sid)
+        flask_socketio.emit(
+            "json_error",
+            {"error": "Need to call /register first."},
+            namespace='/data',
+            to=request.sid
+            )
     logging.debug(f"client with task id: {session.sid} sent data {data}")
-    
+
 
 @socketio.on('connect', namespace='/results')
 def connect_results(auth):
@@ -235,11 +250,11 @@ def connect_results(auth):
             without registering first.
     """
 
-    #print(f"connect {session.sid} {session}")
-    #print(f"{request.sid} {request}")
+    # print(f"connect {session.sid} {session}")
+    # print(f"{request.sid} {request}")
     if 'registered' not in session:
         # TODO: disconnect?
-        #flask_socketio.disconnect(request.sid, namespace="/results")
+        # flask_socketio.disconnect(request.sid, namespace="/results")
         raise ConnectionRefusedError('Need to call /register first.')
 
     sid = request.sid
@@ -253,6 +268,7 @@ def connect_results(auth):
 @socketio.on('disconnect', namespace='/results')
 def disconnect_results():
     print(f"Client disconnected from /results namespace: session id: {session.sid}, websocket id: {request.sid}")
+
 
 @socketio.on('disconnect', namespace='/data')
 def disconnect_data():
@@ -284,13 +300,17 @@ def main(args=None):
     parser = argparse.ArgumentParser(description='Standalone variant of object detection NetApp')
     # TODO: in future versions, the ports should be specified as list instead of range, preferably
     #       using env variable, for compatibility with middleware
-    parser.add_argument('--ports',
-                        default="5001:5003",
-                        help="Specify the range of ports available for gstreamer connections. Format "
-                             "port_start:port_end. Default is 5001:5003.")
-    parser.add_argument('--detector',
-                        default="fps",
-                        help="Select detector. Available options are opencv, mmdetection, fps. Default is fps.")
+    parser.add_argument(
+        '--ports',
+        default="5001:5003",
+        help="Specify the range of ports available for gstreamer connections. Format "
+             "port_start:port_end. Default is 5001:5003."
+        )
+    parser.add_argument(
+        '--detector',
+        default="fps",
+        help="Select detector. Available options are opencv, mmdetection, fps. Default is fps."
+        )
     args = parser.parse_args()
     global free_ports, detector_thread
     try:
@@ -311,7 +331,8 @@ def main(args=None):
             from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker as DetectorWorker
         else:
             raise ImageDetectorInitializationFailed(
-                "Invalid detector selected. Available options are opencv, mmdetection, fps.")
+                "Invalid detector selected. Available options are opencv, mmdetection, fps."
+            )
 
         detector_thread = DetectorWorker(image_queue, app, name="Detector", daemon=True)
         detector_thread.start()

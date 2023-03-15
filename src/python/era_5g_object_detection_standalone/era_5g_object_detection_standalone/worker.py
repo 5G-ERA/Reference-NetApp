@@ -71,6 +71,7 @@ class Worker(ImageDetector, ABC):
 
                 detections.append(det)
 
+            # TODO:check timestamp exists
             r = {"timestamp": metadata["timestamp"],
                  "detections": detections}
 
