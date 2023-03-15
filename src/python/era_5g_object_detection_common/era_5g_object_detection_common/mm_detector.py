@@ -1,10 +1,5 @@
-import json
 import os
 from abc import ABC
-from queue import Empty, Queue
-import cv2
-import flask_socketio
-import numpy as np
 
 from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
 from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS, convert_mmdet_result

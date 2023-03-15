@@ -16,8 +16,9 @@ import cv2
 import numpy as np
 import pycocotools.mask as masks_util  # for decoding masks
 
-from era_5g_client.client import NetAppClient
+from era_5g_client.client import NetAppClient, RunTaskMode
 from era_5g_client.exceptions import FailedToConnect
+from era_5g_client.dataclasses import MiddlewareInfo
 
 image_storage: Dict[str, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
@@ -35,6 +36,8 @@ MIDDLEWARE_USER = os.getenv("MIDDLEWARE_USER", "00000000-0000-0000-0000-00000000
 MIDDLEWARE_PASSWORD = os.getenv("MIDDLEWARE_PASSWORD", "password")
 # middleware NetApp id (task id)
 MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-000000000000")
+# middleware robot id 
+MIDDLEWARE_ROBOT_ID = os.getenv("MIDDLEWARE_ROBOT_ID", "00000000-0000-0000-0000-000000000000")
 
 # Video from source flag
 FROM_SOURCE = False
@@ -146,9 +149,9 @@ def main() -> None:
         # create an instance of NetApp client with results callback
         client = NetAppClient(get_results)
         # authenticates with the middleware
-        client.connect_to_middleware(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD, True)
+        client.connect_to_middleware(MiddlewareInfo(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD))
         # run task, wait untill is ready and register with it
-        client.run_task(MIDDLEWARE_TASK_ID, wait_for_netapp=True, register=True)
+        client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER)
 
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...

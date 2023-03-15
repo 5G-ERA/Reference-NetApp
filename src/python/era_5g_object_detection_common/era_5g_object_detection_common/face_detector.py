@@ -2,7 +2,6 @@ import os
 from abc import ABC
 
 import cv2
-import numpy as np
 
 from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
 

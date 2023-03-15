@@ -1,10 +1,6 @@
 import os
-import logging
-from era_5g_object_detection_distributed_worker.worker_mmdet import MMDetectorWorker
 from celery import Celery
 from celery.signals import worker_process_init
-
-from era_5g_object_detection_common.image_detector import ImageDetectorInitializationFailed
 
 
 # RabbitMQ service address
@@ -24,19 +20,9 @@ detector_worker = None
 # Init
 @worker_process_init.connect()
 def worker_setup(**kwargs):
-    global detector_worker
-    try:
-        # initialization of the detector
-        detector_worker = MMDetectorWorker()
-    except ImageDetectorInitializationFailed as ex:
-        print(f"Failed to init the detector: {ex}")
-        exit()
+    pass
 
 
 @app.task(name='era-5g-reference-netapp-distributed')
 def detector_task(data):
-    metadata, image = data
-    # process the received image
-    detections = detector_worker.process_image(image)
-    results = (metadata, detections)
-    return results
+    pass

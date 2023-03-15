@@ -1,8 +1,5 @@
-import os
 import time
 from abc import ABC
-
-import numpy as np
 
 from era_5g_object_detection_common.image_detector import ImageDetector
 

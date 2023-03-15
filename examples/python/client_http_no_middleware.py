@@ -19,6 +19,8 @@ import pycocotools.mask as masks_util  # for decoding masks
 from era_5g_client.client_base import NetAppClientBase
 from era_5g_client.exceptions import FailedToConnect
 
+from era_5g_client.dataclasses import NetAppLocation
+
 image_storage: Dict[str, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
 stopped = False
@@ -47,6 +49,7 @@ class ResultsViewer(Thread):
     def __init__(self, **kw) -> None:
         super().__init__(**kw)
         self.stop_event = Event()
+        self.index = 0
 
     def stop(self) -> None:
         self.stop_event.set()
@@ -71,15 +74,21 @@ class ResultsViewer(Thread):
                         cls_name = d["class_name"]
                         # Draw detection into frame.
                         x1, y1, x2, y2 = [int(coord) for coord in d["bbox"]]
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+                        if cls_name == "person":
+                            color = (255, 1, 252)
+                        elif cls_name in ["car", "truck"]:
+                            color = (255, 255, 0)
+                        else:
+                            color = (0, 255, 0)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                         font = cv2.FONT_HERSHEY_SIMPLEX
                         cv2.putText(
                             frame,
                             f"{cls_name} ({score * 100:.0f})%",
                             (x1, y1 - 5),
                             font,
-                            0.5,
-                            (0, 255, 0),
+                            1,
+                            color,
                             1,
                             cv2.LINE_AA,
                         )
@@ -139,7 +148,7 @@ def main() -> None:
         # creates an instance of NetApp client with results callback
         client = NetAppClientBase(get_results)
         # register with an ad-hoc deployed NetApp
-        client.register(NETAPP_ADDRESS, NETAPP_PORT, ws_data=True)
+        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT))
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
             cap = cv2.VideoCapture(0)

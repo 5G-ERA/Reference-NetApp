@@ -2,7 +2,7 @@ from threading import Thread
 from queue import Full, Queue
 import cv2
 from era_5g_interface.task_handler import TaskHandler
-from era_5g_object_detection_distributed_worker import detector_task
+from era_5g_object_detection_distributed_interface.worker_interface import detector_task
 from abc import ABC
 
 
