@@ -21,6 +21,8 @@ from era_5g_client.exceptions import FailedToConnect
 
 from era_5g_client.dataclasses import NetAppLocation
 
+from utils.rate_timer import RateTimer
+
 image_storage: Dict[str, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
 stopped = False
@@ -46,8 +48,10 @@ if not os.path.isfile(TEST_VIDEO_FILE):
 
 
 class ResultsViewer(Thread):
-    def __init__(self, **kw) -> None:
+    def __init__(self, image_storage, results_queue, **kw) -> None:
         super().__init__(**kw)
+        self.image_storage = image_storage
+        self.results_queue = results_queue
         self.stop_event = Event()
         self.index = 0
 
@@ -57,57 +61,56 @@ class ResultsViewer(Thread):
     def run(self) -> None:
         logging.info("Thread %s: starting", self.name)
         while not self.stop_event.is_set():
-            if not results_storage.empty():
-                results = results_storage.get(timeout=1)
-                timestamp_str = results["timestamp"]
-                timestamp = int(timestamp_str)
-                if DEBUG_PRINT_DELAY:
-                    time_now = time.time_ns()
-                    print(f"{(time_now - timestamp) * 1.0e-9:.3f}s delay")
+            results = self.results_queue.get(block=True)
+            timestamp_str = results["timestamp"]
+            timestamp = int(timestamp_str)
+            if DEBUG_PRINT_DELAY:
+                time_now = time.time_ns()
+                print(f"{(time_now - timestamp) * 1.0e-9:.3f}s delay")
+            try:
+                frame = self.image_storage.pop(timestamp_str)
+                detections = results["detections"]
+                for d in detections:
+                    score = float(d["score"])
+                    if DEBUG_PRINT_SCORE and score > 0:
+                        print(score)
+                    cls_name = d["class_name"]
+                    # Draw detection into frame.
+                    x1, y1, x2, y2 = [int(coord) for coord in d["bbox"]]
+                    if cls_name == "person":
+                        color = (255, 1, 252)
+                    elif cls_name in ["car", "truck"]:
+                        color = (255, 255, 0)
+                    else:
+                        color = (0, 255, 0)
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(
+                        frame,
+                        f"{cls_name} ({score * 100:.0f})%",
+                        (x1, y1 - 5),
+                        font,
+                        1,
+                        color,
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+                    if "mask" in d and DEBUG_DRAW_MASKS:
+                        encoded_mask = d["mask"]
+                        encoded_mask["counts"] = base64.b64decode(encoded_mask["counts"])  # Base64 decode
+                        mask = masks_util.decode(encoded_mask).astype(bool)  # RLE decode
+                        color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
+                        frame[mask] = frame[mask] * 0.5 + color_mask * 0.5
+
                 try:
-                    frame = image_storage.pop(timestamp_str)
-                    detections = results["detections"]
-                    for d in detections:
-                        score = float(d["score"])
-                        if DEBUG_PRINT_SCORE and score > 0:
-                            print(score)
-                        cls_name = d["class_name"]
-                        # Draw detection into frame.
-                        x1, y1, x2, y2 = [int(coord) for coord in d["bbox"]]
-                        if cls_name == "person":
-                            color = (255, 1, 252)
-                        elif cls_name in ["car", "truck"]:
-                            color = (255, 255, 0)
-                        else:
-                            color = (0, 255, 0)
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                        font = cv2.FONT_HERSHEY_SIMPLEX
-                        cv2.putText(
-                            frame,
-                            f"{cls_name} ({score * 100:.0f})%",
-                            (x1, y1 - 5),
-                            font,
-                            1,
-                            color,
-                            1,
-                            cv2.LINE_AA,
-                        )
-
-                        if "mask" in d and DEBUG_DRAW_MASKS:
-                            encoded_mask = d["mask"]
-                            encoded_mask["counts"] = base64.b64decode(encoded_mask["counts"])  # Base64 decode
-                            mask = masks_util.decode(encoded_mask).astype(bool)  # RLE decode
-                            color_mask = np.random.randint(0, 256, (1, 3), dtype=np.uint8)
-                            frame[mask] = frame[mask] * 0.5 + color_mask * 0.5
-
-                    try:
-                        cv2.imshow("Results", frame)
-                        cv2.waitKey(1)
-                    except Exception as ex:
-                        print(ex)
-                    results_storage.task_done()
-                except KeyError as ex:
+                    cv2.imshow("Results", frame)
+                    cv2.waitKey(1)
+                except Exception as ex:
                     print(ex)
+                self.results_queue.task_done()
+            except KeyError as ex:
+                print(ex)
 
 
 def get_results(results: Dict[str, Any]) -> None:
@@ -126,7 +129,7 @@ def get_results(results: Dict[str, Any]) -> None:
 def main() -> None:
     """Creates the client class and starts the data transfer."""
 
-    results_viewer = ResultsViewer(name="test_client_http_viewer", daemon=True)
+    results_viewer = ResultsViewer(image_storage, results_storage, name="test_client_http_viewer", daemon=True)
     results_viewer.start()
 
     logging.getLogger().setLevel(logging.INFO)
@@ -160,6 +163,11 @@ def main() -> None:
             if not cap.isOpened():
                 raise Exception("Cannot open video file")
 
+        # create timer to ensure required fps speed of the sending loop
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        logging.info(f"Using RateTimer with {fps} FPS.")
+        rate_timer = RateTimer(rate=fps, iteration_miss_warning=True)
+
         while not stopped:
             ret, frame = cap.read()
             timestamp = time.time_ns()
@@ -168,6 +176,8 @@ def main() -> None:
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
             timestamp_str = str(timestamp)
             image_storage[timestamp_str] = resized
+
+            rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
             client.send_image_http(resized, timestamp_str, 5)
 
     except FailedToConnect as ex:
