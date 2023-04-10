@@ -107,7 +107,8 @@ def main():
             break
         resized_img = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
         timestamp_str = str(timestamp)
-        image_storage[timestamp_str] = resized_img
+        if args.show_results:
+            image_storage[timestamp_str] = resized_img
         metadata = {"timestamp": timestamp_str}
 
         rate_timer.sleep()  # sleep until next frame should be sent (with given fps)

@@ -7,7 +7,7 @@ import os
 import signal
 import time
 import traceback
-from queue import Queue
+from queue import Queue, Empty
 from threading import Event, Thread
 from types import FrameType
 from typing import Any, Dict, Optional
@@ -61,7 +61,10 @@ class ResultsViewer(Thread):
     def run(self) -> None:
         logging.info("Thread %s: starting", self.name)
         while not self.stop_event.is_set():
-            results = self.results_queue.get(block=True)
+            try:
+                results = self.results_queue.get(timeout=1)
+            except Empty:
+                continue
             timestamp_str = results["timestamp"]
             timestamp = int(timestamp_str)
             if DEBUG_PRINT_DELAY:
