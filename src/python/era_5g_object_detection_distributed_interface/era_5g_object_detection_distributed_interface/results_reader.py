@@ -5,6 +5,7 @@ from time import sleep
 from threading import Thread, Event
 import flask_socketio
 import logging
+import time
 
 
 class ResultsReader(Thread):
@@ -94,8 +95,12 @@ class ResultsReader(Thread):
                 det["class_name"] = str(cls_name)
 
                 detections.append(det)
+            
+            send_timestamp = time.time_ns()
 
             r = {"timestamp": metadata["timestamp"],
+                 "recv_timestamp": metadata["recv_timestamp"],
+                 "send_timestamp": send_timestamp,
                  "detections": detections}
         
 
