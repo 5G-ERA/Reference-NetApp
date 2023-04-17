@@ -35,7 +35,6 @@ class TaskHandlerDistributed(TaskHandler, ABC):
             image (_type_): The image to be processed.
         """
 
-        
         if metadata.get("decoded", True):
             job_data = (metadata, image)
         else: 
