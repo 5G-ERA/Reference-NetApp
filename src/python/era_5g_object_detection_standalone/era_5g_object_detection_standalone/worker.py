@@ -56,8 +56,8 @@ class Worker(ImageDetector, ABC):
         Publishes the results to the robot
 
         Args:
-            metadata (_type_): NetApp-specific metadata related to processed image.
             results (_type_): The results of the detection.
+            metadata (_type_): NetApp-specific metadata related to processed image.
         """
 
         detections = list()
