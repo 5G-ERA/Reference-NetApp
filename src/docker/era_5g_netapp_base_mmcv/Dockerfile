@@ -1,6 +1,6 @@
 FROM python:3.8-slim
 
-RUN apt-get update \ 
+RUN apt-get update \
     && apt-get install -y python3-pip git wget
 
 # CPU version
@@ -18,8 +18,7 @@ ENV NETAPP_MMDET_PATH=/root/mmdetection
 
 #RUN mkdir -p /root/mmdetection/configs/yolo/ \
 #    && cd /root/mmdetection/configs/yolo/ \
-    
-   
+
 #&& wget -c https://download.openmmlab.com/mmdetection/v2.0/yolo/yolov3_mobilenetv2_320_300e_coco/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth
 
 
