@@ -1,5 +1,6 @@
 from queue import Queue
 import flask_socketio
+import time
 
 from era_5g_object_detection_common.mm_detector import MMDetector
 from era_5g_object_detection_standalone.worker import Worker
@@ -47,8 +48,13 @@ class MMDetectorWorker(Worker, MMDetector):
             det["class_name"] = str(cls_name)
 
             detections.append(det)
+        
+        send_timestamp = time.time_ns()
+
         # add timestamp to the results
         r = {"timestamp": metadata["timestamp"],
+             "recv_timestamp": metadata["recv_timestamp"],
+             "send_timestamp": send_timestamp,
              "detections": detections}
 
         # use the flask app to return the results

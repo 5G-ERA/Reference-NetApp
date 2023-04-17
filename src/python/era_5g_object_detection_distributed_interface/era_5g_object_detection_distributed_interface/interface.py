@@ -3,6 +3,7 @@ import binascii
 import os
 import logging
 import secrets
+import time
 from queue import Queue
 
 from era_5g_interface.task_handler_gstreamer import TaskHandlerGstreamer
@@ -101,6 +102,9 @@ def image_callback_http():
     """
     Allows to receive jpg-encoded image using the HTTP transport
     """
+
+    recv_timestamp = time.time_ns()
+
     if 'registered' not in session:
         return Response('Need to call /register first.', 401)
     
@@ -121,7 +125,8 @@ def image_callback_http():
         # the image is not decoded here to make the callback as fast as possible
         task.store_image({"sid": sid, 
                           "websocket_id": task.websocket_id, 
-                          "timestamp": timestamps[index], 
+                          "timestamp": timestamps[index],
+                          "recv_timestamp": recv_timestamp,
                           "decoded": False}, 
                          nparr)
         index += 1
@@ -142,6 +147,8 @@ def image_callback_websocket(data: dict):
             without registering first or frame was not passed in correct format.
     """
     logging.debug("A frame recieved using ws")
+    recv_timestamp = time.time_ns()
+
     if 'timestamp' in data:
         timestamp = data['timestamp']
     else:
@@ -169,7 +176,8 @@ def image_callback_websocket(data: dict):
         frame = base64.b64decode(data["frame"])
         task.store_image({"sid": session.sid, 
                           "websocket_id": task.websocket_id, 
-                          "timestamp": timestamp, 
+                          "timestamp": timestamp,
+                          "recv_timestamp": recv_timestamp,
                           "decoded": False}, 
                          np.frombuffer(frame, dtype=np.uint8))
     except (ValueError, binascii.Error) as error:

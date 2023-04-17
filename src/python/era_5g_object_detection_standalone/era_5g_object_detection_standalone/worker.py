@@ -3,6 +3,7 @@ from queue import Empty, Queue
 import flask_socketio
 import logging
 import cv2
+import time
 
 from era_5g_object_detection_common.image_detector import ImageDetector
 
@@ -71,8 +72,12 @@ class Worker(ImageDetector, ABC):
 
                 detections.append(det)
 
+            send_timestamp = time.time_ns()
+
             # TODO:check timestamp exists
             r = {"timestamp": metadata["timestamp"],
+                 "recv_timestamp": metadata["recv_timestamp"],
+                 "send_timestamp": send_timestamp,
                  "detections": detections}
 
             # use the flask app to return the results
