@@ -56,7 +56,8 @@ def get_results(results: Dict[str, Any]) -> None:
     """
 
     if verbose:
-        print(results)
+        #print(results)
+        logging.info(results)
 
     if "timestamp" not in results:
         return
