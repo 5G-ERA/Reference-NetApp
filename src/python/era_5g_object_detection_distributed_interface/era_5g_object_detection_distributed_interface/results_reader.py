@@ -99,6 +99,7 @@ class ResultsReader(Thread):
             send_timestamp = time.time_ns()
 
             r = {"timestamp": metadata["timestamp"],
+                 "recv_timestamp": metadata["recv_timestamp"],
                  "send_timestamp": send_timestamp,
                  "detections": detections}
         
