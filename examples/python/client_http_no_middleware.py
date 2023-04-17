@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import logging
 import math
 import os
