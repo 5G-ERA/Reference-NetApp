@@ -62,14 +62,6 @@ def get_results(results: Dict[str, Any]) -> None:
     if "timestamp" not in results:
         return
 
-    final_timestamp = time.time_ns()
-    time_measurements.append([
-        results["timestamp"],
-        results["recv_timestamp"],
-        results["send_timestamp"],
-        final_timestamp
-    ])
-
     if results_storage is not None:
         results_storage.put(results, block=False)
     
@@ -86,27 +78,11 @@ def main() -> None:
         default=False, action="store_true",
         help="Print information about processed data. Defaults to False."
         )
-    parser.add_argument("-o", "--out-csv-dir",
-        default=None, 
-        help="Path to a directory where output csv file with results of time measurements should be stored. "
-            "If not set, no measurement results are saved."
-        )
-    parser.add_argument("-p", "--out-prefix",
-        default="netapp_test_",
-        help="Prefix of output csv file with measurements. The file is suffixed with current time."
-        )
     args = parser.parse_args()
     global verbose
     verbose = args.verbose
 
     logging.getLogger().setLevel(logging.INFO)
-    current_date_time = datetime.now().strftime("%Y-%d-%m_%H-%M-%S")
-
-    # make sure that output dir exists 
-    if args.out_csv_dir is not None:
-        os.makedirs(args.out_csv_dir, exist_ok=True)
-        # make sure the dir is ok for writing
-        assert os.access(args.out_csv_dir, os.W_OK | os.X_OK) 
 
     global results_storage
     if args.no_results:
@@ -122,7 +98,8 @@ def main() -> None:
     def signal_handler(sig: int, frame: Optional[FrameType]) -> None:
         global stopped
         stopped = True
-        results_viewer.stop()
+        if not args.no_results:
+            results_viewer.stop()
         print(f"Terminating ({signal.Signals(sig).name})...")
 
     signal.signal(signal.SIGTERM, signal_handler)
@@ -161,14 +138,6 @@ def main() -> None:
 
             rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
             client.send_image_http(resized, timestamp_str, 5)
-        
-        # save measured times to csv file
-        if args.out_csv_dir is not None:
-            out_csv_filename = f"{args.out_prefix}{current_date_time}"
-            out_csv_filepath = os.path.join(args.out_csv_dir, out_csv_filename)
-            with open(out_csv_filepath, "w", newline='') as csv_file:
-                csv_writer = csv.writer(csv_file)
-                csv_writer.writerows(time_measurements)
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
