@@ -29,7 +29,7 @@ sudo docker build . -f docker/era_5g_netapp_base_mmcv/Dockerfile.gpu -t but5gera
 
 ### era_5g_object_detection_standalone
 
-The reference implementation of standalone NetApp docker image. The interface requires exposing several ports to the hosts to work properly. The 5896/udp port is required for HTTP communication with the interface. *N* other ports are needed for the *GStreamer* communication. This reference implementation allows up to three concurrent GStreamer connections on ports 5001, 5002 and 5003. These ports are specified in the *interface.py* script and exposed in the Dockerfile.interface and the *run* command below. Two Dockerfiles are provided, one for the CPU-only variant and one which includes the CUDA for GPU processing.
+The reference implementation of standalone NetApp docker image. The interface requires exposing several ports to the hosts to work properly. The 5896 port is required for HTTP communication with the interface. *N* other ports are needed for the *GStreamer* communication. This reference implementation allows up to three concurrent GStreamer connections on ports 5001, 5002 and 5003. These ports are specified in the *interface.py* script and exposed in the Dockerfile.interface and the *run* command below. Two Dockerfiles are provided, one for the CPU-only variant and one which includes the CUDA for GPU processing.
 
 How to build (CPU-only):
 ```bash
@@ -43,12 +43,12 @@ sudo docker build . -f docker/era_5g_object_detection_standalone/Dockerfile.gpu 
 
 How to run:
 ```bash
-sudo docker run --rm -p 5896:5896/udp -p 5001-5003:5001-5003/udp but5gera/netapp_object_detection_standalone_cpu:VERSION
+sudo docker run --rm -p 5896:5896 -p 5001-5003:5001-5003/udp but5gera/netapp_object_detection_standalone_cpu:VERSION
 ```
 
 ### era_5g_object_detection_distributed
 
-Contains two Dockerfiles for the building of _interface__* and *worker* image. The interface requires exposing several ports to the hosts to work properly. The 5896/udp port is required for HTTP communication with the interface. *N* other ports are needed for the *GStreamer* communication. This reference implementation allows up to three concurrent GStreamer connections on ports 5001, 5002 and 5003. These ports are specified in the *interface.py* script and exposed in the Dockerfile.interface and the *run* command bellow.
+Contains two Dockerfiles for the building of _interface__* and *worker* image. The interface requires exposing several ports to the hosts to work properly. The 5896 port is required for HTTP communication with the interface. *N* other ports are needed for the *GStreamer* communication. This reference implementation allows up to three concurrent GStreamer connections on ports 5001, 5002 and 5003. These ports are specified in the *interface.py* script and exposed in the Dockerfile.interface and the *run* command bellow.
 
 How to build:
 ```bash
@@ -58,7 +58,7 @@ sudo docker build . -f docker/era_5g_object_detection_distributed/Dockerfile.wor
 
 How to run:
 ```bash
-sudo docker run --rm -p 5896:5896/udp -p 5001-5003:5001-5003/udp but5gera/netapp_object_detection_distributed_interface:VERSION
+sudo docker run --rm -p 5896:5896 -p 5001-5003:5001-5003/udp but5gera/netapp_object_detection_distributed_interface:VERSION
 sudo docker run --rm but5gera/netapp_object_detection_distributed_worker:0.1.0
 ```
 
