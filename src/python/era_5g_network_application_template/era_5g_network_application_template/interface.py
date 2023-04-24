@@ -12,7 +12,8 @@ from flask_session import Session
 import logging
 
 from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
-from era_5g_network_application_template.worker import Worker
+# the worker is needed when the network application should process the data in separated thread
+#from era_5g_network_application_template.worker import Worker
 
 # port of the netapp's server
 NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
@@ -26,11 +27,12 @@ app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 socketio = flask_socketio.SocketIO(app, manage_session=False, async_mode='threading')
 
-# list of registered tasks
+# list of registered tasks (clients)
 tasks = dict()
 
 # queue with received data
-data_queue = Queue(30)
+# needed when the network application should process the data in separated thread
+#data_queue = Queue(30)
 
 # the threaded worker to be used
 worker_thread = None
@@ -42,17 +44,17 @@ class ArgFormatError(Exception):
 @app.route('/register', methods=['POST'])
 def register():
     """
-    Needs to be called before an attempt to open WS is made.
+    The endpoint, which is called to register new client (robot) with the network 
+    application. It can receive the optional parameter using the "args" variable.
 
-    Returns:
-        _type_: The port used for gstreamer communication.
     """
     # get the network application configuration
+    # args is dictionary with optional parameters
     args = request.get_json(silent=True)
     # register the robot's session
     session['registered'] = True
 
-    # create an instance of task hander, which will be responsible for holding
+    # create an instance of task handler, which will be responsible for holding
     # the information of the robot and the connection to it
     task = TaskHandlerInternalQ(session.sid, data_queue, daemon=True)
     # we need to store the task into the dictionary
@@ -97,7 +99,7 @@ def image_callback_http():
     else:
         timestamps = []
     index = 0
-    # unpack the image files ftom the request
+    # unpack the image files from the request
     for file in request.files.to_dict(flat=False)['files']:
         # convert string of image data to uint8
         nparr = np.frombuffer(file.read(), np.uint8)
@@ -123,26 +125,15 @@ def json_callback_http():
     if not data:
         return Response("No data provided", status=400)
     
+    # here the data could be processed or passed to the worker using the internal queue
+
     with app.app_context():
+        # send results back to the client (robot)
+        # flask_socketio.send(data: dict(), namespace='/results', to=task.websocket_id)
+        # the format of the result is specific for the network application and it is not 
+        # specified by the protocol
         flask_socketio.send({"result": data}, namespace='/results', to=task.websocket_id)
     return Response(status=200)
-
-@socketio.on('connect', namespace='/data')
-def connect_data(auth):
-    """_summary_
-    Creates a websocket connection to the client for passing the data.
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first.
-    """
-
-    if 'registered' not in session:
-        raise ConnectionRefusedError('Need to call /register first.')
-    
-    print(f"Connected data. Session id: {session.sid}, ws_sid: {request.sid}")
-    
-    flask_socketio.send("you are connected", namespace='/data', to=request.sid)
 
 @socketio.on('image', namespace='/data')
 def image_callback_websocket(data: dict):
@@ -183,6 +174,9 @@ def image_callback_websocket(data: dict):
     task = tasks[session.sid]
     try:
         frame = base64.b64decode(data["frame"])
+
+        # here the image frame could be processed or passed to the worker using the internal queue
+
         #task.store_image({"sid": session.sid, 
         #                  "websocket_id": task.websocket_id, 
         #                  "timestamp": timestamp, 
@@ -217,12 +211,34 @@ def json_callback_websocket(data):
         return
     sid = session.sid
     task = tasks[sid]
-    data_queue.put(({"sid": sid, 
-                     "websocket_id": task.websocket_id}, 
-                    data), 
-                   block=False)
+
+    # here the data could be processed or passed to the worker using the internal queue
+
+    #data_queue.put(({"sid": sid, 
+    #                 "websocket_id": task.websocket_id}, 
+    #                data), 
+    #               block=False)
     logging.debug(f"client with task id: {session.sid} sent data {data}")
     
+
+@socketio.on('connect', namespace='/data')
+def connect_data(auth):
+    """Creates a websocket connection to the client for passing the data. 
+
+    Raises:
+        ConnectionRefusedError: Raised when attempt for connection were made
+            without registering first.
+    """
+
+    if 'registered' not in session:
+        raise ConnectionRefusedError('Need to call /register first.')
+    
+    print(f"Connected data. Session id: {session.sid}, ws_sid: {request.sid}")
+    
+    flask_socketio.send("you are connected", namespace='/data', to=request.sid)
+
+
+
 
 @socketio.on('connect', namespace='/results')
 def connect_results(auth):
