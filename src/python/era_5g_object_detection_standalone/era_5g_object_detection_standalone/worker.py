@@ -34,12 +34,12 @@ class Worker(ImageDetector, ABC):
         Periodically reads images from python internal queue process them.
         """
 
-        logging.debug(f"{self.name} thread is running.")
+        logging.info(f"{self.name} thread is running.")
 
         while not self.stop_event.is_set():
             # Get image and metadata from input queue
             try:
-                metadata, image = self.image_queue.get(block=True)
+                metadata, image = self.image_queue.get(block=True, timeout=1)
             except Empty:
                 continue
 
@@ -51,6 +51,8 @@ class Worker(ImageDetector, ABC):
                 detections = self.process_image(img)
 
             self.publish_results(detections, metadata)
+
+        logging.info(f"{self.name} thread is stopping.")
 
     def publish_results(self, results, metadata):
         """

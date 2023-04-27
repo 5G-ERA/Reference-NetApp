@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from threading import Thread, Event
+import logging
 
 
 class ImageDetectorInitializationFailed(Exception):
@@ -54,4 +55,3 @@ class ImageDetector(Thread, ABC):
         """
 
         pass
-        
