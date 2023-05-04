@@ -151,7 +151,7 @@ def main() -> None:
         # authenticates with the middleware
         client.connect_to_middleware(MiddlewareInfo(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD))
         # run task, wait untill is ready and register with it
-        client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER)
+        client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER, ws_data=True)
 
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
@@ -172,7 +172,7 @@ def main() -> None:
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
             timestamp_str = str(timestamp)
             image_storage[timestamp_str] = resized
-            client.send_image_http(resized, timestamp_str, 5)
+            client.send_image_ws(resized, timestamp_str)
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
