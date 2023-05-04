@@ -109,7 +109,7 @@ def main() -> None:
         # creates an instance of NetApp client with results callback
         client = NetAppClientBase(get_results)
         # register with an ad-hoc deployed NetApp
-        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT))
+        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT), ws_data=True)
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
             cap = cv2.VideoCapture(0)
@@ -137,7 +137,7 @@ def main() -> None:
                 image_storage[timestamp_str] = resized
 
             rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
-            client.send_image_http(resized, timestamp_str, 5)
+            client.send_image_ws(resized, timestamp_str)
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
