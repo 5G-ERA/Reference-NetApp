@@ -13,7 +13,7 @@ era_5g_object_detection_distributed_interface/interface.py.
 The package could be installed via pip:
 
 ```bash
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 pip3 install .
 ```
 

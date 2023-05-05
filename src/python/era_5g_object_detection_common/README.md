@@ -7,7 +7,7 @@ Support classes for 5G-ERA object detectors NetApps.
 The package could be installed via pip:
 
 ```bash
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 pip3 install .
 ```
 

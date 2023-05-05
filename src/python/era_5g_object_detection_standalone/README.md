@@ -11,7 +11,7 @@ The reference implementation of the NetApp client is provided in the file era_5g
 The package could be installed via pip:
 
 ```bash
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 pip3 install .
 ```
 
