@@ -22,7 +22,7 @@ from era_5g_client.exceptions import FailedToConnect
 
 from era_5g_client.dataclasses import NetAppLocation
 
-from utils.rate_timer import RateTimer
+from era_5g_interface.utils.rate_timer import RateTimer
 from utils.results_viewer import ResultsViewer
 
 image_storage: Dict[str, np.ndarray] = dict()
