@@ -24,6 +24,23 @@ MODEL_VARIANTS = {
                            '.37_20200504_163245-42aa3d00.pth',
         'with_masks': True
     },
+    'yolox_tiny': {
+        'config_file': 'configs/yolox/yolox_tiny_8x8_300e_coco.py',
+        'checkpoint_file': 'configs/yolox/yolox_tiny_8x8_300e_coco_20211124_171234-b4047906.pth',
+        'with_masks': False
+    },
+                                                                                      
+    'yolo_dark_net': {                                                           
+       'config_file': 'configs/yolo/yolov3_d53_320_273e_coco.py',                                                             
+       'checkpoint_file': 'configs/yolo/yolov3_d53_320_273e_coco-421362b6.pth',                                                         
+       'with_masks': False                                                             
+    },
+ 
+    'yolo_dark_net2': {                                                           
+       'config_file': 'configs/yolo/yolov3_d53_mstrain-416_273e_coco.py',                                                             
+       'checkpoint_file': 'configs/yolo/yolov3_d53_mstrain-416_273e_coco-2b60fcd9.pth',                                                         
+       'with_masks': False                                                             
+    }, 
 
     # Example:
     # 'model_variant_name': {
