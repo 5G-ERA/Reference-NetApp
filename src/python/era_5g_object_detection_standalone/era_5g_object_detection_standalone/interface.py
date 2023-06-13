@@ -19,6 +19,8 @@ from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
 
 # port of the netapp's server
 NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
+# input queue size
+NETAPP_INPUT_QUEUE = os.getenv("NETAPP_INPUT_QUEUE", 30)
 
 # flask initialization
 app = Flask(__name__)
@@ -38,7 +40,7 @@ tasks = dict()
 
 # queue with received images
 # TODO: adjust the queue length
-image_queue = Queue(30)
+image_queue = Queue(int(NETAPP_INPUT_QUEUE))
 
 # the image detector to be used
 detector_thread = None
@@ -354,6 +356,8 @@ def main(args=None):
         new_queue_size = int(max_latency / avg_latency)
         image_queue = Queue(new_queue_size)
         detector_thread.input_queue = image_queue"""
+    
+    logging.info(f"The size of the queue set to: {NETAPP_INPUT_QUEUE}")
 
     # runs the flask server
     # allow_unsafe_werkzeug needs to be true to run inside the docker
