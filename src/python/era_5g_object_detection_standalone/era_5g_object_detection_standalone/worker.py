@@ -1,6 +1,6 @@
 from abc import ABC
-from queue import Empty, Queue
-import flask_socketio
+from multiprocessing import Queue
+from queue import Empty
 import logging
 import cv2
 import time
@@ -16,7 +16,7 @@ class Worker(ImageDetector, ABC):
     method.
     """
 
-    def __init__(self, image_queue: Queue, app, **kw):
+    def __init__(self, image_queue: Queue, sio, **kw):
         """
         Constructor
 
@@ -27,7 +27,7 @@ class Worker(ImageDetector, ABC):
 
         super().__init__(**kw)
         self.image_queue = image_queue
-        self.app = app
+        self.sio = sio
 
     def run(self):
         """
@@ -35,24 +35,24 @@ class Worker(ImageDetector, ABC):
         """
 
         logging.info(f"{self.name} thread is running.")
-
+    
         while not self.stop_event.is_set():
             # Get image and metadata from input queue
             try:
                 metadata, image = self.image_queue.get(block=True, timeout=1)
             except Empty:
                 continue
-
+            metadata["timestamp_before_process"] = time.time_ns()
             if metadata.get("decoded", True):
                 detections = self.process_image(image)
             else: 
                 # decode image
                 img = cv2.imdecode(image, cv2.IMREAD_COLOR)
                 detections = self.process_image(img)
-
+            metadata["timestamp_after_process"] = time.time_ns()
             self.publish_results(detections, metadata)
-
-        logging.info(f"{self.name} thread is stopping.")
+        
+            
 
     def publish_results(self, results, metadata):
         """
@@ -62,7 +62,6 @@ class Worker(ImageDetector, ABC):
             results (_type_): The results of the detection.
             metadata (_type_): NetApp-specific metadata related to processed image.
         """
-
         detections = list()
         if results is not None:
             for (bbox, score, cls_id, cls_name) in results:
@@ -79,10 +78,8 @@ class Worker(ImageDetector, ABC):
             # TODO:check timestamp exists
             r = {"timestamp": metadata["timestamp"],
                  "recv_timestamp": metadata["recv_timestamp"],
+                 "timestamp_before_process": metadata["timestamp_before_process"],
+                 "timestamp_after_process": metadata["timestamp_after_process"],
                  "send_timestamp": send_timestamp,
                  "detections": detections}
-
-            # use the flask app to return the results
-            with self.app.app_context():
-                # print(f"publish_results to: {metadata['websocket_id']} flask_socketio.send: {r}")
-                flask_socketio.send(r, namespace='/results', to=metadata["websocket_id"])
+            self.sio.emit('message', r, namespace="/results", to=metadata["websocket_id"])

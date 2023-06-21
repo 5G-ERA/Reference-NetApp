@@ -2,4 +2,3 @@ numpy>=1.23.*
 opencv-python~=4.6.0.66
 pycocotools==2.0.*
 setuptools
-eventlet

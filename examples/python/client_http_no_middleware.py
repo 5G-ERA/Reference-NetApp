@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import argparse
 import logging
-import math
 import os
 import signal
 import time
 import traceback
 
-from datetime import datetime
-from queue import Queue, Empty
-from threading import Event, Thread
+from queue import Queue
 from types import FrameType
 from typing import Any, Dict, Optional
 
@@ -30,6 +27,7 @@ results_storage: Queue[Dict[str, Any]] = Queue()
 time_measurements = []
 stopped = False
 verbose = False
+time_debug = False
 
 
 # Video from source flag
@@ -54,10 +52,20 @@ def get_results(results: Dict[str, Any]) -> None:
     Args:
         results (str): The results in json format
     """
-
+    tm = time.time_ns()
+     
     if verbose:
-        #print(results)
-        logging.info(results)
+        logging.info(results) 
+        
+    if time_debug:
+        print("")
+        logging.info(f"latency: {(tm - int(results['timestamp']))/1000000}")
+        logging.info(f"processing: {(int(results['timestamp_after_process']) - int(results['timestamp_before_process']))/1000000}")
+        logging.info(f"process_to_send: {(int(results['send_timestamp']) - int(results['timestamp_after_process']))/1000000}")
+        logging.info(f"transport: {(int(results['recv_timestamp']) - int(results['timestamp']))/1000000}")
+        logging.info(f"recv_to_process: {(int(results['timestamp_before_process']) - int(results['recv_timestamp']))/1000000}")
+        logging.info(f"send_to_results: {tm - int(results['send_timestamp'])/1000000}")
+        
 
     if "timestamp" not in results:
         return
@@ -78,9 +86,14 @@ def main() -> None:
         default=False, action="store_true",
         help="Print information about processed data. Defaults to False."
         )
+    parser.add_argument("-t", "--time_debug",
+        default=False, action="store_true",
+        help="Print information about transport and processing times. Defaults to False."
+        )
     args = parser.parse_args()
-    global verbose
+    global verbose, time_debug
     verbose = args.verbose
+    time_debug = args.time_debug
 
     logging.getLogger().setLevel(logging.INFO)
 
@@ -109,7 +122,7 @@ def main() -> None:
         # creates an instance of NetApp client with results callback
         client = NetAppClientBase(get_results)
         # register with an ad-hoc deployed NetApp
-        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT), ws_data=True)
+        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT))
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
             cap = cv2.VideoCapture(0)
@@ -135,10 +148,8 @@ def main() -> None:
             timestamp_str = str(timestamp)
             if not args.no_results:
                 image_storage[timestamp_str] = resized
-
-            rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
             client.send_image_ws(resized, timestamp_str)
-
+            rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
     except KeyboardInterrupt:

@@ -55,7 +55,6 @@ class MMDetector(ImageDetector, ABC):
             with bounding box (x1, y1, x2, y2, top-left bottom-right corners), score (0..1), 
             class_id and class_name.
         """
-
         if frame is not None:
             # gets results from detector
             result = inference_detector(self.model, frame)

@@ -1,6 +1,5 @@
 from abc import abstractmethod, ABC
 from threading import Thread, Event
-import logging
 
 
 class ImageDetectorInitializationFailed(Exception):
@@ -12,6 +11,7 @@ class ImageDetector(Thread, ABC):
     The base class for NetApps based on image processing. Provides abstract
     methods for processing images and publishing results. It is based on Threads.
     """
+
 
     def __init__(self, **kw):
         super().__init__(**kw)
