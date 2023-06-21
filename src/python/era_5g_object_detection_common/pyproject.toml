@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "era_5g_object_detection_common"
-version = "0.0.1"
+version = "0.2.0"
 authors = [
   { name="Michal Kapinus", email="ikapinus@fit.vutbr.cz" },
 ]

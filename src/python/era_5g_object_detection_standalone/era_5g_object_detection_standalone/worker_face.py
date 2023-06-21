@@ -9,7 +9,7 @@ class FaceDetectorWorker(Worker, FaceDetector):
     Worker object for the basic face detector based on OpenCV Haar-cascade Detection. 
     """
 
-    def __init__(self, image_queue: Queue, app, **kw):
+    def __init__(self, image_queue: Queue, sio, **kw):
         """
         Constructor
 
@@ -18,4 +18,4 @@ class FaceDetectorWorker(Worker, FaceDetector):
             app (_type_): A flask app for results publishing.
         """
 
-        super().__init__(image_queue=image_queue, app=app, **kw)
+        super().__init__(image_queue=image_queue, sio=sio, **kw)

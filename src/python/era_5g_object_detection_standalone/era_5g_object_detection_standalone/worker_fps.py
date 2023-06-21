@@ -9,7 +9,7 @@ class FpsDetectorWorker(Worker, FpsTestDetector):
     Worker object for the debug detector which returns the framerate of received stream.
     """
 
-    def __init__(self, image_queue: Queue, app, **kw):
+    def __init__(self, image_queue: Queue, sio, **kw):
         """
         Constructor
 
@@ -18,4 +18,4 @@ class FpsDetectorWorker(Worker, FpsTestDetector):
             app (_type_): A flask app for results publishing.
         """
 
-        super().__init__(image_queue=image_queue, app=app, **kw)
+        super().__init__(image_queue=image_queue, sio=sio, **kw)

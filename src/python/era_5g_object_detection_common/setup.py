@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name='era_5g_object_detection_common',
-      version='0.0.1',
+      version='0.2.0',
       description='An interface for 5G-ERA NetApps',
       author='Michal Kapinus',
       author_email='ikapinus@fit.vutbr.cz',
