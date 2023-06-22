@@ -1,0 +1,14 @@
+<package>
+  <description brief="era_5g_object_detection">
+
+     era_5g_object_detection
+
+  </description>
+  <author>Michal Kapinus</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/era_5g_object_detection</url>
+  <depend package="rospy"/>
+  <depend package="sensor_msgs"/>
+
+</package>
