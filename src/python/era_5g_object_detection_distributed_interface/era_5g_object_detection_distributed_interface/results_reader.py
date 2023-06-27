@@ -7,6 +7,8 @@ import flask_socketio
 import logging
 import time
 
+from era_5g_interface.interface_helpers import LatencyMeasurements
+
 
 class ResultsReader(Thread):
     """
@@ -30,6 +32,8 @@ class ResultsReader(Thread):
         self.fps = 0.0
         self._jobs_info_queue = jobs_info_queue
         self.app = app
+
+        self.latency_measurements = LatencyMeasurements()
 
         self.jobs_in_process = []
 
@@ -97,6 +101,8 @@ class ResultsReader(Thread):
                 detections.append(det)
             
             send_timestamp = time.time_ns()
+
+            self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
 
             r = {"timestamp": metadata["timestamp"],
                  "recv_timestamp": metadata["recv_timestamp"],
