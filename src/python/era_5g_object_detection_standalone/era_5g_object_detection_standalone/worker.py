@@ -1,9 +1,10 @@
 from abc import ABC
 from multiprocessing import Queue
 from queue import Empty
-import logging
 import cv2
 import time
+import logging
+logger = logging.getLogger(__name__)
 
 from era_5g_object_detection_common.image_detector import ImageDetector
 
@@ -28,13 +29,14 @@ class Worker(ImageDetector, ABC):
         super().__init__(**kw)
         self.image_queue = image_queue
         self.sio = sio
+        self.frame_id = 0
 
     def run(self):
         """
         Periodically reads images from python internal queue process them.
         """
 
-        logging.info(f"{self.name} thread is running.")
+        logger.info(f"{self.name} thread is running.")
     
         while not self.stop_event.is_set():
             # Get image and metadata from input queue
@@ -42,17 +44,26 @@ class Worker(ImageDetector, ABC):
                 metadata, image = self.image_queue.get(block=True, timeout=1)
             except Empty:
                 continue
-            metadata["timestamp_before_process"] = time.time_ns()
-            if metadata.get("decoded", True):
-                detections = self.process_image(image)
-            else: 
-                # decode image
-                img = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                detections = self.process_image(img)
-            metadata["timestamp_after_process"] = time.time_ns()
-            self.publish_results(detections, metadata)
+            metadata["timestamp_before_process"] = time.perf_counter_ns()
+            self.frame_id += 1
+            #logger.info(f"Worker received frame id: {self.frame_id} {metadata['timestamp']}")
+
+            try:
+                if metadata.get("decoded", True):
+                    detections = self.process_image(image)
+                else:
+                    # decode image
+                    img = cv2.imdecode(image, cv2.IMREAD_COLOR)
+                    detections = self.process_image(img)
+            metadata["timestamp_after_process"] = time.perf_counter_ns()
+                self.publish_results(detections, metadata)
+            except Exception as e:
+                logger.error(f"Exception with image processing: {e}")
         
             
+
+
+        logger.info(f"{self.name} thread is stopping.")
 
     def publish_results(self, results, metadata):
         """
@@ -73,7 +84,9 @@ class Worker(ImageDetector, ABC):
 
                 detections.append(det)
 
-            send_timestamp = time.time_ns()
+            send_timestamp = time.perf_counter_ns()
+
+            self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
 
             # TODO:check timestamp exists
             r = {"timestamp": metadata["timestamp"],

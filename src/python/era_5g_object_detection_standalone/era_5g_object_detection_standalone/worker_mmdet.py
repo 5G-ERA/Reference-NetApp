@@ -51,6 +51,8 @@ class MMDetectorWorker(Worker, MMDetector):
         
         send_timestamp = time.time_ns()
 
+        self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
+
         # add timestamp to the results
         r = {"timestamp": metadata["timestamp"],
             "recv_timestamp": metadata["recv_timestamp"],

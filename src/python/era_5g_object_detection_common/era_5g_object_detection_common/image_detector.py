@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 from threading import Thread, Event
+from era_5g_interface.interface_helpers import LatencyMeasurements
 
 
 class ImageDetectorInitializationFailed(Exception):
@@ -18,6 +19,7 @@ class ImageDetector(Thread, ABC):
         self.stop_event = Event()
         self.time = None
         self.fps = 0.0
+        self.latency_measurements = LatencyMeasurements()
 
     def stop(self):
         self.stop_event.set()
