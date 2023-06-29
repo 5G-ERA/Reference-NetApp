@@ -1,6 +1,6 @@
 # era_5g_object_detection_standalone
 
-Implementation of standalone variant of object detector NetApp. Requires the opencv to be compiled with the support of Gstreamer. The range of ports available for the Gstreamer transport.
+Implementation of standalone variant of object detector NetApp.
 
 ## Reference implementation
 
@@ -27,11 +27,6 @@ export NETAPP_PORT=5897
 ```
 
 Arguments:
-
- - --ports
- 
-   Specify the range of ports available for gstreamer connections. Format port_start:port_end. 
-   Default is 5001:5003.
  
  - --detector
 
