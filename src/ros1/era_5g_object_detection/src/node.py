@@ -1,4 +1,5 @@
 from multiprocessing.queues import Queue
+import os
 import time
 import rospy
 import json
@@ -13,6 +14,9 @@ from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker
 from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS
 
 image_queue = Queue(1)
+
+INPUT_TOPIC = os.getenv("INPUT_TOPIC", None)
+OUTPUT_TOPIC = os.getenv("OUTPUT_TOPIC", None)
 
 class ObjectDetector(MMDetectorWorker):
 
@@ -52,11 +56,12 @@ class ObjectDetector(MMDetectorWorker):
         pub.publish(results)
 
 pub = None
+bridge = CvBridge()
 
 def image_callback(msg: Image):
     try:
         # Convert the ROS image message to OpenCV format
-        bridge = CvBridge()
+        
         cv_image = bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
         image_queue.put(({"timestamp": msg.header.stamp.to_nsec(), "recv_timestamp": rospy.Time.now().to_nsec()}, cv_image))
         
@@ -68,10 +73,10 @@ def object_detector():
     rospy.init_node('object_detector', anonymous=True)
     
     # Subscribe to the image topic
-    rospy.Subscriber("/image_raw", Image, image_callback)
+    rospy.Subscriber(INPUT_TOPIC, Image, image_callback)
 
     # Publish to the modified image topic
-    pub = rospy.Publisher("/results", String, queue_size=10)
+    pub = rospy.Publisher(OUTPUT_TOPIC, String, queue_size=10)
 
     detector = ObjectDetector(image_queue, pub)
     detector.start()
@@ -82,4 +87,7 @@ def object_detector():
     detector.stop()
 
 if __name__ == '__main__':
-    object_detector()
+    if None in [INPUT_TOPIC, OUTPUT_TOPIC]:
+        print("INPUT_TOPIC and OUTPUT_TOPIC environment variables needs to be specified!")
+    else:
+        object_detector()
