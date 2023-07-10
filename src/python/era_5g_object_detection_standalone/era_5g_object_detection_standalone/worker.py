@@ -9,6 +9,7 @@ from era_5g_object_detection_common.image_detector import ImageDetector
 
 logger = logging.getLogger(__name__)
 
+
 class Worker(ImageDetector, ABC):
     """
     Worker object for image processing in standalone variant. Reads 
@@ -37,7 +38,7 @@ class Worker(ImageDetector, ABC):
         """
 
         logger.info(f"{self.name} thread is running.")
-    
+
         while not self.stop_event.is_set():
             # Get image and metadata from input queue
             try:
@@ -46,14 +47,9 @@ class Worker(ImageDetector, ABC):
                 continue
             metadata["timestamp_before_process"] = time.perf_counter_ns()
             self.frame_id += 1
-            #logger.info(f"Worker received frame id: {self.frame_id} {metadata['timestamp']}")
+            # logger.info(f"Worker received frame id: {self.frame_id} {metadata['timestamp']}")
             try:
-                if metadata.get("decoded", True):
-                    detections = self.process_image(image)
-                else:
-                    # decode image
-                    img = cv2.imdecode(image, cv2.IMREAD_COLOR)
-                    detections = self.process_image(img)
+                detections = self.process_image(image)
                 metadata["timestamp_after_process"] = time.perf_counter_ns()
                 self.publish_results(detections, metadata)
             except Exception as e:
@@ -86,9 +82,9 @@ class Worker(ImageDetector, ABC):
 
             # TODO:check timestamp exists
             result = {"timestamp": metadata["timestamp"],
-                 "recv_timestamp": metadata["recv_timestamp"],
-                 "timestamp_before_process": metadata["timestamp_before_process"],
-                 "timestamp_after_process": metadata["timestamp_after_process"],
-                 "send_timestamp": send_timestamp,
-                 "detections": detections}
+                      "recv_timestamp": metadata["recv_timestamp"],
+                      "timestamp_before_process": metadata["timestamp_before_process"],
+                      "timestamp_after_process": metadata["timestamp_after_process"],
+                      "send_timestamp": send_timestamp,
+                      "detections": detections}
             self.sio.emit('message', result, namespace="/results", to=metadata["websocket_id"])

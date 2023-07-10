@@ -21,8 +21,8 @@ from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker
 from era_5g_object_detection_standalone.worker_fps import FpsDetectorWorker
 from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker
 from era_5g_interface.h264_decoder import H264Decoder
-import era_5g_interface.interface_helpers
 from era_5g_interface.interface_helpers import HeartBeatSender
+from era_5g_interface.interface_helpers import MIDDLEWARE_REPORT_INTERVAL
 from era_5g_interface.dataclasses.control_command import ControlCommand, ControlCmdType
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -58,13 +58,13 @@ def heart_beat_timer():
     if len(latencies) > 0:
         avg_latency = float(np.mean(np.array(latencies)))
 
-    queue_size = 1
+    queue_size = NETAPP_INPUT_QUEUE
     queue_occupancy = 1
 
     heart_beat_sender.send_middleware_heart_beat(
         avg_latency=avg_latency, queue_size=queue_size, queue_occupancy=queue_occupancy, current_robot_count=len(tasks)
     )
-    threading.Timer(era_5g_interface.interface_helpers.MIDDLEWARE_REPORT_INTERVAL, heart_beat_timer).start()
+    threading.Timer(MIDDLEWARE_REPORT_INTERVAL, heart_beat_timer).start()
 
 
 heart_beat_timer()
@@ -203,8 +203,7 @@ def image_callback_websocket(sid, data: dict):
         {"sid": eio_sid,
          "timestamp": data["timestamp"],
          "recv_timestamp": time.perf_counter_ns(),
-         "websocket_id": get_results_sid(sio.manager.eio_sid_from_sid(sid, "/data")),
-         "decoded": True},
+         "websocket_id": get_results_sid(sio.manager.eio_sid_from_sid(sid, "/data"))},
         image
     )
 
@@ -229,7 +228,7 @@ def json_callback_websocket(sid, data):
 @sio.on('command', namespace='/control')
 def command_callback_websocket(sid, data: Dict):
     command = ControlCommand(**data)
-    if command and command.cmd_type == ControlCmdType.RESET_STATE:
+    if command and command.cmd_type == ControlCmdType.SET_STATE:
         args = command.data
         socket_h264 = False
         fps = 30
