@@ -100,7 +100,7 @@ class ResultsViewer(Thread):
                         cv2.imshow("Results", frame)
                         cv2.waitKey(1)
                     except Exception as ex:
-                        print(ex)
+                        print(repr(ex))
                     results_storage.task_done()
                 except KeyError as ex:
                     print(ex)
@@ -174,7 +174,7 @@ def main() -> None:
         print("Terminating...")
     except Exception as ex:
         traceback.print_exc()
-        print(f"Failed to create client instance ({ex})")
+        print(f"Failed to create client instance ({repr(ex)})")
     finally:
         results_viewer.stop()
         if client is not None:

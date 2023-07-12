@@ -53,7 +53,7 @@ class Worker(ImageDetector, ABC):
                 metadata["timestamp_after_process"] = time.perf_counter_ns()
                 self.publish_results(detections, metadata)
             except Exception as e:
-                logger.error(f"Exception with image processing: {e}")
+                logger.error(f"Exception with image processing: {repr(e)}")
 
         logger.info(f"{self.name} thread is stopping.")
 
