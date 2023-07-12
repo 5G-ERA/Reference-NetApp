@@ -158,7 +158,7 @@ def main() -> None:
         print("Terminating...")
     except Exception as ex:
         traceback.print_exc()
-        print(f"Failed to create client instance ({ex})")
+        print(f"Failed to create client instance ({repr(ex)})")
     finally:
         if client is not None:
             client.disconnect()

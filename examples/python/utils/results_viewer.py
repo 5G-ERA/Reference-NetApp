@@ -79,7 +79,7 @@ class ResultsViewer(Thread):
                     cv2.imshow("Results", frame)
                     cv2.waitKey(1)
                 except Exception as ex:
-                    print(ex)
+                    print(repr(ex))
                 self.results_queue.task_done()
             except KeyError as ex:
                 print(ex)
