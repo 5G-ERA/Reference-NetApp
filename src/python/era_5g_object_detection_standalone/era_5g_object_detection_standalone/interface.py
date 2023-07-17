@@ -45,8 +45,6 @@ tasks: Dict[str, TaskHandler] = {}
 
 DetectorWorker: type = None
 
-last_timestamp = 0
-
 heart_beat_sender = HeartBeatSender()
 
 
@@ -163,7 +161,9 @@ def image_callback_websocket(sid, data: dict):
         )
         return
 
-    global last_timestamp
+    task = tasks[eio_sid]
+
+    last_timestamp = task.last_timestamp
     if timestamp - last_timestamp < 0:
         logger.error(
             f"Received frame with older timestamp: {timestamp}, "
@@ -178,10 +178,8 @@ def image_callback_websocket(sid, data: dict):
             to=sid
         )
         return
+    tasks[eio_sid].last_timestamp = timestamp
 
-    last_timestamp = timestamp
-
-    task = tasks[eio_sid]
     try:
         if task.decoder:
             image = task.decoder.decode_packet_data(data["frame"])
