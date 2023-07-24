@@ -31,12 +31,7 @@ RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
 # Source the workspace setup file
 RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
 
-RUN git clone https://github.com/Kapim/era-5g-interface.git \
-    && cd era-5g-interface \
-    && python3 -m pip install -r requirements.txt \
-    && ./pants package :: \
-    && cd dist \
-    && python3 -m pip install era_5g_interface-0.3.0-py3-none-any.whl
+RUN python3 -m pip install era_5g_interface==0.3.0
 
 COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
 

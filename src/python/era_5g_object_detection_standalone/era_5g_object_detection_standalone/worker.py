@@ -39,18 +39,27 @@ class Worker(ImageDetector, ABC):
         while not self.stop_event.is_set():
             # Get image and metadata from input queue
             try:
-                metadata, image = self.image_queue.get(block=True, timeout=1)
+                metadata1, image1 = self.image_queue.get(block=True, timeout=1)
+                metadata2, image2 = self.image_queue.get(block=True, timeout=1)
+                metadata3, image3 = self.image_queue.get(block=True, timeout=1)
+                metadata3, image4 = self.image_queue.get(block=True, timeout=1)
+                metadata3, image5 = self.image_queue.get(block=True, timeout=1)
             except Empty:
                 continue
-            metadata["timestamp_before_process"] = time.time_ns()
-            if metadata.get("decoded", True):
-                detections = self.process_image(image)
+            metadata1["timestamp_before_process"] = time.time_ns()
+            if metadata1.get("decoded", True):
+                detections = self.process_images((image1, image2, image3, image4, image5))
+                #print(detections)
+                
             else: 
                 # decode image
                 img = cv2.imdecode(image, cv2.IMREAD_COLOR)
                 detections = self.process_image(img)
-            metadata["timestamp_after_process"] = time.time_ns()
-            self.publish_results(detections, metadata)
+            #metadata["timestamp_after_process"] = time.time_ns()
+            #print(detections)
+            for d in detections:
+                #print("before p")
+                self.publish_results(d, metadata1)
         
             
 
@@ -82,4 +91,5 @@ class Worker(ImageDetector, ABC):
                  "timestamp_after_process": metadata["timestamp_after_process"],
                  "send_timestamp": send_timestamp,
                  "detections": detections}
+            
             self.sio.emit('message', r, namespace="/results", to=metadata["websocket_id"])

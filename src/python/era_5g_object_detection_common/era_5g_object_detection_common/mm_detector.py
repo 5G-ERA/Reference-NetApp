@@ -64,3 +64,29 @@ class MMDetector(ImageDetector, ABC):
         else:
             # TODO: raise an exception
             return []
+
+    def process_images(self, frames):
+        """
+        Detects the objects of selected classes the incoming frame and returns all detections.
+
+        Args:
+            frame (_type_): The passed image
+
+        Returns:
+            list(tuple(bbox[], score, class_id, class_name)): The list of detected objects,
+            with bounding box (x1, y1, x2, y2, top-left bottom-right corners), score (0..1), 
+            class_id and class_name.
+        """
+        if frames is not None:
+            # gets results from detector
+            result = inference_detector(self.model, frames)
+            # convert results to the standard format and return it to the robot
+            converted = []
+            for r in result:
+                converted.append(convert_mmdet_result(r, merged_data=True,
+                                        with_mask=MODEL_VARIANTS[self.model_variant]['with_masks']))
+            
+            return converted
+        else:
+            # TODO: raise an exception
+            return []
