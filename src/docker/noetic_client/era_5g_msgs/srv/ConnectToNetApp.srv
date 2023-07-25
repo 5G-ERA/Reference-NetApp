@@ -1,0 +1,7 @@
+string address
+int32 port
+string input_topic
+string output_topic
+---
+bool success
+string message

@@ -1,13 +1,16 @@
 from __future__ import annotations
+
 import argparse
 import logging
 import os
 import signal
 import time
 import traceback
+
 from queue import Queue
 from types import FrameType
 from typing import Any, Dict, Optional
+
 import cv2
 import numpy as np
 
@@ -23,6 +26,7 @@ time_measurements = []
 stopped = False
 verbose = False
 time_debug = False
+
 
 # Video from source flag
 FROM_SOURCE = False
