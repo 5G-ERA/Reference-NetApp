@@ -1,8 +1,6 @@
 from __future__ import annotations
-
 import base64  # for decoding masks
 import logging
-import math
 import os
 import signal
 import time
@@ -11,7 +9,6 @@ from queue import Queue
 from threading import Event, Thread
 from types import FrameType
 from typing import Any, Dict, Optional
-
 import cv2
 import numpy as np
 import pycocotools.mask as masks_util  # for decoding masks
@@ -20,7 +17,7 @@ from era_5g_client.client import NetAppClient, RunTaskMode
 from era_5g_client.exceptions import FailedToConnect
 from era_5g_client.dataclasses import MiddlewareInfo
 
-image_storage: Dict[str, np.ndarray] = dict()
+image_storage: Dict[int, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
 stopped = False
 
@@ -28,7 +25,9 @@ DEBUG_PRINT_SCORE = False  # useful for FPS detector
 DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiving the results
 DEBUG_DRAW_MASKS = True  # draw segmentation masks (if provided by detector)
 
-
+# Video from source flag
+FROM_SOURCE = False
+# ip address or hostname of the middleware server
 MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
 # middleware user
 MIDDLEWARE_USER = os.getenv("MIDDLEWARE_USER", "00000000-0000-0000-0000-000000000000")
@@ -39,8 +38,6 @@ MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-00
 # middleware robot id 
 MIDDLEWARE_ROBOT_ID = os.getenv("MIDDLEWARE_ROBOT_ID", "00000000-0000-0000-0000-000000000000")
 
-# Video from source flag
-FROM_SOURCE = False
 # test video file
 try:
     TEST_VIDEO_FILE = os.environ["TEST_VIDEO_FILE"]
@@ -67,7 +64,7 @@ class ResultsViewer(Thread):
                 timestamp_str = results["timestamp"]
                 timestamp = int(timestamp_str)
                 if DEBUG_PRINT_DELAY:
-                    time_now = time.time_ns()
+                    time_now = time.perf_counter_ns()
                     print(f"{(time_now - timestamp) * 1.0e-9:.3f}s delay")
                 try:
                     frame = image_storage.pop(timestamp_str)
@@ -103,7 +100,7 @@ class ResultsViewer(Thread):
                         cv2.imshow("Results", frame)
                         cv2.waitKey(1)
                     except Exception as ex:
-                        print(ex)
+                        print(repr(ex))
                     results_storage.task_done()
                 except KeyError as ex:
                     print(ex)
@@ -135,12 +132,10 @@ def main() -> None:
     stopped = False
 
     def signal_handler(sig: int, frame: Optional[FrameType]) -> None:
+        print(f"Terminating ({signal.Signals(sig).name})...")
         global stopped
         stopped = True
         results_viewer.stop()
-        if client is not None:
-            client.disconnect()
-        print(f"Terminating ({signal.Signals(sig).name})...")
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
@@ -150,7 +145,7 @@ def main() -> None:
         client = NetAppClient(get_results)
         # authenticates with the middleware
         client.connect_to_middleware(MiddlewareInfo(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD))
-        # run task, wait untill is ready and register with it
+        # run task, wait until is ready and register with it
         client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER, ws_data=True)
 
         if FROM_SOURCE:
@@ -166,13 +161,12 @@ def main() -> None:
 
         while not stopped:
             ret, frame = cap.read()
-            timestamp = time.time_ns()
+            timestamp = time.perf_counter_ns()
             if not ret:
                 break
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
-            timestamp_str = str(timestamp)
-            image_storage[timestamp_str] = resized
-            client.send_image_ws(resized, timestamp_str)
+            image_storage[timestamp] = resized
+            client.send_image_ws(resized, timestamp)
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
@@ -180,7 +174,7 @@ def main() -> None:
         print("Terminating...")
     except Exception as ex:
         traceback.print_exc()
-        print(f"Failed to create client instance ({ex})")
+        print(f"Failed to create client instance ({repr(ex)})")
     finally:
         results_viewer.stop()
         if client is not None:

@@ -8,6 +8,8 @@ from era_5g_object_detection_common.image_detector import ImageDetector
 
 BATCH_SIZE = 5
 
+logger = logging.getLogger(__name__)
+
 
 class Worker(ImageDetector, ABC):
     """
@@ -17,7 +19,7 @@ class Worker(ImageDetector, ABC):
     method.
     """
 
-    def __init__(self, image_queue: Deque, sio, **kw):
+    def __init__(self, image_queue: Queue, app, **kw):
         """
         Constructor
 
@@ -29,6 +31,7 @@ class Worker(ImageDetector, ABC):
         super().__init__(**kw)
         self.image_queue = image_queue
         self.sio = sio
+        self.frame_id = 0
 
     def run(self):
         """
@@ -53,27 +56,29 @@ class Worker(ImageDetector, ABC):
             assert len(images) == len(metadata)
 
             if not images:
-                logging.debug("Not enough data!")
+                logger.debug("Not enough data!")
                 # TODO sleeping could be avoided with customized deque - signalling there is something to pop out using event
                 time.sleep(0.1)
                 continue
 
-            logging.debug(f"Batch size: {len(images)}")
+            logger.debug(f"Batch size: {len(images)}")
 
-            ts_before = time.time_ns()
+            ts_before = time.perf_counter_ns()
             for idx in range(len(metadata)):
                 metadata[idx]["timestamp_before_process"] = ts_before
 
                 if not metadata[idx].get("decoded", True):
                     images[idx] = cv2.imdecode(image, cv2.IMREAD_COLOR)
 
+                self.frame_id += 1
+
             detections = self.process_images(images)
 
-            ts_after = time.time_ns()
+            ts_after = time.perf_counter_ns()
             for mt in metadata:
                 mt["timestamp_after_process"] = ts_after
 
-            logging.debug(f"Processing took {(ts_after-ts_before)/10**9}")
+            logger.debug(f"Processing took {(ts_after-ts_before)/10**9}")
 
             assert len(detections) == len(images)
 
@@ -88,6 +93,7 @@ class Worker(ImageDetector, ABC):
             results (_type_): The results of the detection.
             metadata (_type_): NetApp-specific metadata related to processed image.
         """
+
         detections = list()
         if results is not None:
             for bbox, score, cls_id, cls_name in results:
@@ -99,7 +105,9 @@ class Worker(ImageDetector, ABC):
 
                 detections.append(det)
 
-            send_timestamp = time.time_ns()
+            send_timestamp = time.perf_counter_ns()
+
+            self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
 
             # TODO:check timestamp exists
             r = {

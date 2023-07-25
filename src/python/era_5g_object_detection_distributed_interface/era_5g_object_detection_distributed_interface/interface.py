@@ -6,13 +6,11 @@ import secrets
 import time
 from queue import Queue
 
-from era_5g_interface.task_handler_gstreamer import TaskHandlerGstreamer
 import numpy as np
 from era_5g_object_detection_distributed_interface.results_reader import ResultsReader
 
 import flask_socketio
-from era_5g_object_detection_distributed_interface.task_handler_gstreamer_distributed import \
-    TaskHandlerGstreamerDistributed
+
 from era_5g_object_detection_distributed_interface.task_handler_distributed import \
     TaskHandlerDistributed
 from flask import Flask, Response, request, session

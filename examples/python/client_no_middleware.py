@@ -15,14 +15,12 @@ import cv2
 import numpy as np
 
 from era_5g_client.client_base import NetAppClientBase
-from era_5g_client.exceptions import FailedToConnect
-
 from era_5g_client.dataclasses import NetAppLocation
-
+from era_5g_client.exceptions import FailedToConnect
 from era_5g_interface.utils.rate_timer import RateTimer
 from utils.results_viewer import ResultsViewer
 
-image_storage: Dict[str, np.ndarray] = dict()
+image_storage: Dict[int, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
 time_measurements = []
 stopped = False
@@ -53,43 +51,51 @@ def get_results(results: Dict[str, Any]) -> None:
         results (str): The results in json format
     """
     tm = time.time_ns()
-     
+
     if verbose:
-        logging.info(results) 
-        
+        logging.info(results)
+
     if time_debug:
         print("")
-        logging.info(f"latency: {(tm - int(results['timestamp']))/1000000}")
-        logging.info(f"processing: {(int(results['timestamp_after_process']) - int(results['timestamp_before_process']))/1000000}")
-        logging.info(f"process_to_send: {(int(results['send_timestamp']) - int(results['timestamp_after_process']))/1000000}")
-        logging.info(f"transport: {(int(results['recv_timestamp']) - int(results['timestamp']))/1000000}")
-        logging.info(f"recv_to_process: {(int(results['timestamp_before_process']) - int(results['recv_timestamp']))/1000000}")
-        logging.info(f"send_to_results: {tm - int(results['send_timestamp'])/1000000}")
-        
+        logging.info(f"latency: {(tm - int(results['timestamp'])) / 1000000}")
+        logging.info(
+            f"processing: {(int(results['timestamp_after_process']) - int(results['timestamp_before_process'])) / 1000000}"
+        )
+        logging.info(
+            f"process_to_send: {(int(results['send_timestamp']) - int(results['timestamp_after_process'])) / 1000000}"
+        )
+        logging.info(f"transport: {(int(results['recv_timestamp']) - int(results['timestamp'])) / 1000000}")
+        logging.info(
+            f"recv_to_process: {(int(results['timestamp_before_process']) - int(results['recv_timestamp'])) / 1000000}"
+        )
+        logging.info(f"send_to_results: {tm - int(results['send_timestamp']) / 1000000}")
 
     if "timestamp" not in results:
         return
 
     if results_storage is not None:
         results_storage.put(results, block=False)
-    
+
 
 def main() -> None:
     """Creates the client class and starts the data transfer."""
 
     parser = argparse.ArgumentParser(description='Example client communication without middleware.')
-    parser.add_argument("-n", "--no-results",
+    parser.add_argument(
+        "-n", "--no-results",
         default=False, action="store_true",
         help="Do not show window with visualization of detection results. Defaults to False."
-        )
-    parser.add_argument("-v", "--verbose",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
         default=False, action="store_true",
         help="Print information about processed data. Defaults to False."
-        )
-    parser.add_argument("-t", "--time_debug",
+    )
+    parser.add_argument(
+        "-t", "--time_debug",
         default=False, action="store_true",
         help="Print information about transport and processing times. Defaults to False."
-        )
+    )
     args = parser.parse_args()
     global verbose, time_debug
     verbose = args.verbose
@@ -122,7 +128,8 @@ def main() -> None:
         # creates an instance of NetApp client with results callback
         client = NetAppClientBase(get_results)
         # register with an ad-hoc deployed NetApp
-        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT), args={"test": "test"})
+        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT))
+
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...
             cap = cv2.VideoCapture(0)
@@ -145,10 +152,9 @@ def main() -> None:
             if not ret:
                 break
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
-            timestamp_str = str(timestamp)
             if not args.no_results:
-                image_storage[timestamp_str] = resized
-            client.send_image_ws(resized, timestamp_str)
+                image_storage[timestamp] = resized
+            client.send_image_ws(resized, timestamp)
             rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
@@ -156,7 +162,7 @@ def main() -> None:
         print("Terminating...")
     except Exception as ex:
         traceback.print_exc()
-        print(f"Failed to create client instance ({ex})")
+        print(f"Failed to create client instance ({repr(ex)})")
     finally:
         if client is not None:
             client.disconnect()

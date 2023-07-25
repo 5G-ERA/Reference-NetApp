@@ -261,7 +261,6 @@ def connect_results(auth):
     print(f"Client connected: session id: {session.sid}, websocket id: {sid}")
     tasks[session.sid].websocket_id = sid
     tasks[session.sid].start()
-    # TODO: Check task is running, Gstreamer capture can failed
     flask_socketio.send("You are connected", namespace='/results', to=sid)
 
 

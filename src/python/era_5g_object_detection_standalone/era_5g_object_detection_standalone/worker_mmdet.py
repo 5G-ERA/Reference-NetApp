@@ -30,6 +30,7 @@ class MMDetectorWorker(Worker, MMDetector):
             metadata (_type_): NetApp-specific metadata related to processed image. TODO: describe the metadata
             results (_type_): The results of the detection. TODO: describe the results format
         """
+
         detections = list()
 
         for result in results:
@@ -46,8 +47,10 @@ class MMDetectorWorker(Worker, MMDetector):
             det["class_name"] = str(cls_name)
 
             detections.append(det)
-
+        
         send_timestamp = time.time_ns()
+
+        self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
 
         # add timestamp to the results
         r = {

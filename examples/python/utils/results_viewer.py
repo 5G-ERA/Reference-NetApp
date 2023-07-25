@@ -37,7 +37,7 @@ class ResultsViewer(Thread):
             timestamp_str = results["timestamp"]
             timestamp = int(timestamp_str)
             if DEBUG_PRINT_DELAY:
-                time_now = time.time_ns()
+                time_now = time.perf_counter_ns()
                 print(f"{(time_now - timestamp) * 1.0e-9:.3f}s delay")
             try:
                 frame = self.image_storage.pop(timestamp_str)
@@ -79,7 +79,7 @@ class ResultsViewer(Thread):
                     cv2.imshow("Results", frame)
                     cv2.waitKey(1)
                 except Exception as ex:
-                    print(ex)
+                    print(repr(ex))
                 self.results_queue.task_done()
             except KeyError as ex:
                 print(ex)
