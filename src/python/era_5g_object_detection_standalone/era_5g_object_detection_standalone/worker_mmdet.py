@@ -1,20 +1,18 @@
-from multiprocessing.queues import Queue
 import time
+from typing import Deque
+
 
 from era_5g_object_detection_common.mm_detector import MMDetector
 from era_5g_object_detection_standalone.worker import Worker
 from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS
-
-from queue import Full
 
 
 class MMDetectorWorker(Worker, MMDetector):
     """
     Worker object for the universal detector based on MMDET package.
     """
-    
 
-    def __init__(self, image_queue: Queue, sio, **kw):
+    def __init__(self, image_queue: Deque, sio, **kw):
         """
         Constructor
 
@@ -37,7 +35,7 @@ class MMDetectorWorker(Worker, MMDetector):
         for result in results:
             det = dict()
             # process the results based on currently used model
-            if MODEL_VARIANTS[self.model_variant]['with_masks']:
+            if MODEL_VARIANTS[self.model_variant]["with_masks"]:
                 bbox, score, cls_id, cls_name, mask = result
                 det["mask"] = mask
             else:
@@ -48,18 +46,16 @@ class MMDetectorWorker(Worker, MMDetector):
             det["class_name"] = str(cls_name)
 
             detections.append(det)
-        
+
         send_timestamp = time.time_ns()
 
         # add timestamp to the results
-        r = {"timestamp": metadata["timestamp"],
+        r = {
+            "timestamp": metadata["timestamp"],
             "recv_timestamp": metadata["recv_timestamp"],
             "timestamp_before_process": metadata["timestamp_before_process"],
             "timestamp_after_process": metadata["timestamp_after_process"],
             "send_timestamp": send_timestamp,
-            "detections": detections}
-        self.sio.emit('message', r, namespace="/results", to=metadata["websocket_id"])    
-        #try:
-            #self.output_queue.put((metadata["websocket_id"], r), block=False)
-        #except Full:
-        #    print("Output queue is full!")
+            "detections": detections,
+        }
+        self.sio.emit("message", r, namespace="/results", to=metadata["websocket_id"])

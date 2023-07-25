@@ -1,4 +1,4 @@
-from queue import Queue
+from typing import Deque
 
 from era_5g_object_detection_common.fps_test_detector import FpsTestDetector
 from era_5g_object_detection_standalone.worker import Worker
@@ -9,7 +9,7 @@ class FpsDetectorWorker(Worker, FpsTestDetector):
     Worker object for the debug detector which returns the framerate of received stream.
     """
 
-    def __init__(self, image_queue: Queue, sio, **kw):
+    def __init__(self, image_queue: Deque, sio, **kw):
         """
         Constructor
 
