@@ -13,6 +13,7 @@ class ImageDetector(Thread, ABC):
     methods for processing images and publishing results. It is based on Threads.
     """
 
+
     def __init__(self, **kw):
         super().__init__(**kw)
         self.stop_event = Event()
