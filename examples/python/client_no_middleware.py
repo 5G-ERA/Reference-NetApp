@@ -15,7 +15,6 @@ import cv2
 import numpy as np
 
 from era_5g_client.client_base import NetAppClientBase
-from era_5g_client.dataclasses import NetAppLocation
 from era_5g_client.exceptions import FailedToConnect
 from era_5g_interface.utils.rate_timer import RateTimer
 from utils.results_viewer import ResultsViewer
@@ -128,7 +127,8 @@ def main() -> None:
         # creates an instance of NetApp client with results callback
         client = NetAppClientBase(get_results)
         # register with an ad-hoc deployed NetApp
-        client.register(NetAppLocation(NETAPP_ADDRESS, NETAPP_PORT))
+        netapp_address = f"http://{NETAPP_ADDRESS}:{NETAPP_PORT}/"
+        client.register(netapp_address)
 
         if FROM_SOURCE:
             # creates a video capture to pass images to the NetApp either from webcam ...

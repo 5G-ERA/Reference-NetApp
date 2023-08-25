@@ -2,7 +2,9 @@ from abc import ABC
 import logging
 import cv2
 import time
-from typing import Dict, List, Deque
+import socketio
+from typing import Dict, List
+from queue import Queue, Empty
 
 from era_5g_object_detection_common.image_detector import ImageDetector
 
@@ -19,7 +21,7 @@ class Worker(ImageDetector, ABC):
     method.
     """
 
-    def __init__(self, image_queue: Deque, sio, **kw):
+    def __init__(self, image_queue: Queue, sio: socketio.Server, **kw):
         """
         Constructor
 
@@ -47,8 +49,9 @@ class Worker(ImageDetector, ABC):
             # try to get a batch (or at least something) from the queue
             for _ in range(BATCH_SIZE):
                 try:
-                    mt, image = self.image_queue.pop()
-                except IndexError:
+                    data = self.image_queue.get(block=True, timeout=0.1)
+                    mt, image = data
+                except Empty:
                     break
                 metadata.append(mt)
                 images.append(image)
@@ -57,8 +60,6 @@ class Worker(ImageDetector, ABC):
 
             if not images:
                 logger.debug("Not enough data!")
-                # TODO sleeping could be avoided with customized deque - signalling there is something to pop out using event
-                time.sleep(0.1)
                 continue
 
             logger.debug(f"Batch size: {len(images)}")
