@@ -197,7 +197,7 @@ def image_callback_websocket(sid, data: dict):
         )
         return
 
-    task.store_image(
+    task.store_data(
         {"sid": eio_sid,
          "timestamp": data["timestamp"],
          "recv_timestamp": time.perf_counter_ns(),
@@ -225,8 +225,32 @@ def json_callback_websocket(sid, data):
 
 @sio.on('command', namespace='/control')
 def command_callback_websocket(sid, data: Dict):
-    command = ControlCommand(**data)
-    if command and command.cmd_type == ControlCmdType.SET_STATE:
+    eio_sid = sio.manager.eio_sid_from_sid(sid, '/control')
+    
+    try:
+        command = ControlCommand(**data)
+    except TypeError as e:
+        logger.error(f"Could not parse Control Command. {str(e)}")
+        sio.emit(
+            "control_cmd_error",
+            {"error": f"Could not parse Control Command. {str(e)}"},
+            namespace='/control',
+            to=sid
+        )
+        return
+
+    if command and command.cmd_type == ControlCmdType.INIT:
+        # Check that initialization has not been called before
+        if eio_sid in tasks:
+            logger.error(f"Client attempted to call initialization multiple times.")
+            sio.emit(
+                "control_cmd_error",
+                {"error": "Initialization has already been called before."},
+                namespace='/control',
+                to=sid
+            )
+            return
+        
         args = command.data
         socket_h264 = False
         fps = 30
@@ -262,8 +286,8 @@ def command_callback_websocket(sid, data: Dict):
                 raise ConnectionRefusedError('Timed out to start worker.')
 
         logger.info(f"Task handler and worker created and started: {eio_sid}")
-
-    logger.info(f"Control command {command} applied: session id: {sid}")
+    
+    logger.info(f"Received Control Command: {command} session id: {sid}")
 
 
 @sio.on('disconnect', namespace='/data')

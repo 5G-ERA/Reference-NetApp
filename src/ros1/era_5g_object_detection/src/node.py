@@ -2,25 +2,26 @@ import os
 import rospy
 import json
 
+from queue import Queue
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
 from cv_bridge import CvBridge, CvBridgeError
-from collections import deque
-from typing import Deque
 
 from era_5g_object_detection_standalone.worker import BATCH_SIZE
 from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker
 from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS
+from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ, QueueFullAction
 
 # limited size is used to discard outdated images if the processing takes too long, so the queue/delay does not rise indefinitely
-image_queue = deque(maxlen=BATCH_SIZE + 1)
+image_queue = Queue(maxsize=BATCH_SIZE + 1)
+
+task_handler = TaskHandlerInternalQ("ros_node", image_queue, if_queue_full=QueueFullAction.DISCARD_OLDEST)
 
 INPUT_TOPIC = os.getenv("INPUT_TOPIC", None)
 OUTPUT_TOPIC = os.getenv("OUTPUT_TOPIC", None)
 
-
 class ObjectDetector(MMDetectorWorker):
-    def __init__(self, image_queue: Deque, pub, **kw):
+    def __init__(self, image_queue: Queue, pub: rospy.Publisher, **kw):
         super().__init__(image_queue, None, **kw)
         self.pub = pub
 
@@ -70,15 +71,12 @@ def image_callback(msg: Image):
         rospy.logerr(f"Can't convert image to cv2. {e}")
         return
 
-    image_queue.appendleft(
-        (
-            {
-                "timestamp": msg.header.stamp.to_nsec(),
-                "recv_timestamp": rospy.Time.now().to_nsec(),
-            },
-            cv_image,
-        )
-    )
+    metadata = {
+        "timestamp": msg.header.stamp.to_nsec(),
+        "recv_timestamp": rospy.Time.now().to_nsec(),
+        }
+    
+    task_handler.store_data(metadata, cv_image)
 
 
 def object_detector():
