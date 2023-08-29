@@ -78,12 +78,7 @@ def get_results_sid(eio_sid):
 
 @sio.on('connect', namespace='/data')
 def connect_data(sid, environ):
-    """Creates a websocket connection to the client for passing the data.
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first.
-    """
+    """Creates a websocket connection to the client for passing the data."""
 
     logger.info(f"Connected data. Session id: {sio.manager.eio_sid_from_sid(sid, '/data')}, namespace_id: {sid}")
     sio.send("You are connected", namespace='/data', to=sid)
@@ -91,12 +86,8 @@ def connect_data(sid, environ):
 
 @sio.on('connect', namespace='/control')
 def connect_control(sid, environ):
-    """_summary_
+    """
     Creates a websocket connection to the client for passing control commands.
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first.
     """
 
     logger.info(f"Connected control. Session id: {sio.manager.eio_sid_from_sid(sid, '/control')}, namespace_id: {sid}")
@@ -107,10 +98,6 @@ def connect_control(sid, environ):
 def connect_results(sid, environ):
     """
     Creates a websocket connection to the client for passing the results.
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first.
     """
 
     logger.info(f"Connected results. Session id: {sio.manager.eio_sid_from_sid(sid, '/results')}, namespace_id: {sid}")
@@ -125,10 +112,6 @@ def image_callback_websocket(sid, data: dict):
     Args:
         data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
             {'frame': 'base64data', 'timestamp': 'int'}
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first or frame was not passed in correct format.
     """
 
     if 'timestamp' in data:
@@ -213,10 +196,6 @@ def json_callback_websocket(sid, data):
 
     Args:
         data (dict): NetApp-specific json data
-
-    Raises:
-        ConnectionRefusedError: Raised when attempt for connection were made
-            without registering first.
     """
     print(data)
 
@@ -225,6 +204,13 @@ def json_callback_websocket(sid, data):
 
 @sio.on('command', namespace='/control')
 def command_callback_websocket(sid, data: Dict):
+    """
+    Receive and process Control Commands.
+
+    Args:
+        data (dict): Control Command received in a form of a dict.
+    """
+
     eio_sid = sio.manager.eio_sid_from_sid(sid, '/control')
     
     try:
@@ -314,7 +300,7 @@ def main():
     parser.add_argument(
         '--detector',
         default="mmdetection",
-        help="Select detector. Available options are opencv, mmdetection, fps. Default is fps."
+        help="Select detector. Available options are opencv, mmdetection, fps. Default is mmdetection."
     )
 
     args = parser.parse_args()
