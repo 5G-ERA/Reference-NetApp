@@ -1,7 +1,10 @@
 from abc import abstractmethod, ABC
 from threading import Thread, Event
+from typing import List, Tuple
 from era_5g_interface.interface_helpers import LatencyMeasurements
 
+
+BasicDetectorResultType = List[Tuple[List[float], float, int, str]]
 
 class ImageDetectorInitializationFailed(Exception):
     pass

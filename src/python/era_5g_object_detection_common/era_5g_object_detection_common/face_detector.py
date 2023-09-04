@@ -2,8 +2,10 @@ import os
 from abc import ABC
 
 import cv2
+import numpy as np
+from typing import List
 
-from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
+from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed, BasicDetectorResultType
 
 # path to the face detector model file (the haarcascade xml)
 MODEL_FILE = os.getenv("NETAPP_FACE_DETECTOR_MODEL_FILE", None)
@@ -35,12 +37,12 @@ class FaceDetector(ImageDetector, ABC):
             raise ImageDetectorInitializationFailed(f"Failed to initialize detector, {MODEL_FILE} does not exist!")
         self.detection_cascade = cv2.CascadeClassifier(MODEL_FILE)
 
-    def process_image(self, frame):
+    def process_image(self, frame: np.array) -> BasicDetectorResultType:
         """
         Detects faces in the incoming frame and returns all detected faces.
 
         Args:
-            frame (_type_): The passed image
+            frame (np.array): The passed image
 
         Returns:
             list(tuple(bbox[], score, class_id, class_name)): The list of detected faces,
@@ -71,3 +73,19 @@ class FaceDetector(ImageDetector, ABC):
             detections_raw.append(det)
 
         return detections_raw
+
+    def process_images(self, frames: List[np.array]) -> List[BasicDetectorResultType]:
+        """
+        Detects faces in the incoming batched frames and returns all detected faces.
+
+        Args:
+            frames (list(np.array)): Batch with image frames
+
+        Returns:
+            list(list(tuple(bbox[], score, class_id, class_name))): List with results for
+            each of the batched frames. Each item is a list of detected faces,
+            with bounding box (x1, y1, x2, y2, top-left bottom-right corners), score (0..1), 
+            class_id (equals to 1 for faces) and class_name ("face").
+        """
+
+        return [self.process_image(frame) for frame in frames]
