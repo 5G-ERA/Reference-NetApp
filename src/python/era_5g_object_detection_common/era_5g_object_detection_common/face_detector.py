@@ -67,7 +67,7 @@ class FaceDetector(ImageDetector, ABC):
             cls_name = "face"
 
             score = 0  # opencv detector does not provide score
-            det = bbox, score, cls, cls_name
+            det = list(bbox), score, cls, cls_name
 
             # Add to other detections for processed frame
             detections_raw.append(det)

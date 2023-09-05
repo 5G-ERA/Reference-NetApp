@@ -1,5 +1,6 @@
 import time
-from typing import Deque
+import socketio
+from queue import Queue
 
 
 from era_5g_object_detection_common.mm_detector import MMDetector
@@ -12,7 +13,7 @@ class MMDetectorWorker(Worker, MMDetector):
     Worker object for the universal detector based on MMDET package.
     """
 
-    def __init__(self, image_queue: Deque, sio, **kw):
+    def __init__(self, image_queue: Queue, sio: socketio.Server, **kw):
         """
         Constructor
 

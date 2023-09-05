@@ -1,5 +1,7 @@
 import os
 from abc import ABC
+import numpy as np
+from typing import List
 
 from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
 from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS, convert_mmdet_result
@@ -33,17 +35,19 @@ class MMDetector(ImageDetector, ABC):
         self.torch_device = os.getenv("NETAPP_TORCH_DEVICE", 'cpu')
         if not self.path_to_mmdet:
             raise ImageDetectorInitializationFailed(
-                f"Failed to load mmdet module, env variable NETAPP_MMDET_PATH not set")
+                f"Failed to load mmdet module, env variable NETAPP_MMDET_PATH not set"
+            )
         if not os.path.exists(self.path_to_mmdet):
             raise ImageDetectorInitializationFailed(
-                f"Failed to load mmdet module, path {self.path_to_mmdet} does not exist")
+                f"Failed to load mmdet module, path {self.path_to_mmdet} does not exist"
+            )
         elif not self.model_variant:
             raise ImageDetectorInitializationFailed(f"Failed to load model, env variable NETAPP_MODEL_VARIANT not set")
         config_file = os.path.join(self.path_to_mmdet, MODEL_VARIANTS[self.model_variant]['config_file'])
         checkpoint_file = os.path.join(self.path_to_mmdet, MODEL_VARIANTS[self.model_variant]['checkpoint_file'])
         self.model = init_detector(config_file, checkpoint_file, device=self.torch_device)
 
-    def process_image(self, frame):
+    def process_image(self, frame: np.array):
         """
         Detects the objects of selected classes the incoming frame and returns all detections.
 
@@ -59,18 +63,20 @@ class MMDetector(ImageDetector, ABC):
             # gets results from detector
             result = inference_detector(self.model, frame)
             # convert results to the standard format and return it to the robot
-            return convert_mmdet_result(result, merged_data=True,
-                                        with_mask=MODEL_VARIANTS[self.model_variant]['with_masks'])
+            return convert_mmdet_result(
+                result, merged_data=True,
+                with_mask=MODEL_VARIANTS[self.model_variant]['with_masks']
+            )
         else:
             # TODO: raise an exception
             return []
 
-    def process_images(self, frames):
+    def process_images(self, frames: List[np.array]):
         """
         Detects the objects of selected classes the incoming frame and returns all detections.
 
         Args:
-            frame (_type_): The passed image
+            frames (List[np.array]): The passed images
 
         Returns:
             list(tuple(bbox[], score, class_id, class_name)): The list of detected objects,
@@ -83,9 +89,13 @@ class MMDetector(ImageDetector, ABC):
             # convert results to the standard format and return it to the robot
             converted = []
             for r in result:
-                converted.append(convert_mmdet_result(r, merged_data=True,
-                                        with_mask=MODEL_VARIANTS[self.model_variant]['with_masks']))
-            
+                converted.append(
+                    convert_mmdet_result(
+                        r, merged_data=True,
+                        with_mask=MODEL_VARIANTS[self.model_variant]['with_masks']
+                    )
+                )
+
             return converted
         else:
             # TODO: raise an exception
