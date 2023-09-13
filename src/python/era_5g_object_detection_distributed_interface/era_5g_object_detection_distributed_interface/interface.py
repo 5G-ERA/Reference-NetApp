@@ -1,4 +1,3 @@
-import base64
 import binascii
 import os
 import logging
@@ -137,8 +136,8 @@ def image_callback_websocket(data: dict):
     Allows to receive jpg-encoded image using the websocket transport
 
     Args:
-        data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
-            {'frame': 'base64data', 'timestamp': 'int'}
+        data (dict): An image frame and (optionally) related timestamp in format:
+            {'frame': 'bytes', 'timestamp': 'int'}
 
     Raises:
         ConnectionRefusedError: Raised when attempt for connection were made
@@ -171,13 +170,12 @@ def image_callback_websocket(data: dict):
 
     task = tasks[session.sid]
     try:
-        frame = base64.b64decode(data["frame"])
-        task.store_image({"sid": session.sid, 
+        task.store_image({"sid": session.sid,
                           "websocket_id": task.websocket_id, 
                           "timestamp": timestamp,
                           "recv_timestamp": recv_timestamp,
                           "decoded": False}, 
-                         np.frombuffer(frame, dtype=np.uint8))
+                         np.frombuffer(data["frame"], dtype=np.uint8))
     except (ValueError, binascii.Error) as error:
         logging.error(f"Failed to decode frame data: {error}")
         flask_socketio.emit("image_error", 
@@ -185,6 +183,7 @@ def image_callback_websocket(data: dict):
                              "error": f"Failed to decode frame data: {error}"}, 
                             namespace='/data', 
                             to=request.sid)
+
 
 @socketio.on('connect', namespace='/results')
 def connect_results(auth):
