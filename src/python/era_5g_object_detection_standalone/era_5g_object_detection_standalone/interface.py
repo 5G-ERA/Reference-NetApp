@@ -107,11 +107,11 @@ def connect_results(sid, environ):
 @sio.on('image', namespace='/data')
 def image_callback_websocket(sid, data: dict):
     """
-    Allows to receive jpg-encoded image using the websocket transport
+    Allows to receive jpg or h264 encoded image using the websocket transport
 
     Args:
-        data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
-            {'frame': 'base64data', 'timestamp': 'int'}
+        data (dict): An image frame and (optionally) related timestamp in format:
+            {'frame': 'bytes', 'timestamp': 'int'}
     """
 
     if 'timestamp' in data:
@@ -167,8 +167,7 @@ def image_callback_websocket(sid, data: dict):
         if task.decoder:
             image = task.decoder.decode_packet_data(data["frame"])
         else:
-            frame = base64.b64decode(data["frame"])
-            image = cv2.imdecode(np.frombuffer(frame, dtype=np.uint8), cv2.IMREAD_COLOR)
+            image = cv2.imdecode(np.frombuffer(data["frame"], dtype=np.uint8), cv2.IMREAD_COLOR)
     except (ValueError, binascii.Error, Exception) as error:
         logger.error(f"Failed to decode frame data: {error}")
         sio.emit(

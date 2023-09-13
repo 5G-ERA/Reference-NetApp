@@ -1,4 +1,3 @@
-import base64
 import binascii
 import secrets
 from queue import Queue
@@ -32,7 +31,7 @@ tasks = dict()
 
 # queue with received data
 # needed when the network application should process the data in separated thread
-#data_queue = Queue(30)
+data_queue = Queue(30)
 
 # the threaded worker to be used
 worker_thread = None
@@ -141,14 +140,14 @@ def image_callback_websocket(data: dict):
     Allows to receive jpg-encoded image using the websocket transport
 
     Args:
-        data (dict): A base64 encoded image frame and (optionally) related timestamp in format:
-            {'frame': 'base64data', 'timestamp': 'int'}
+        data (dict): An image frame and (optionally) related timestamp in format:
+            {'frame': 'bytes', 'timestamp': 'int'}
 
     Raises:
         ConnectionRefusedError: Raised when attempt for connection were made
             without registering first or frame was not passed in correct format.
     """
-    logging.debug("A frame recieved using ws")
+    logging.debug("A frame received using ws")
     if 'timestamp' in data:
         timestamp = data['timestamp']
     else:
@@ -173,15 +172,13 @@ def image_callback_websocket(data: dict):
 
     task = tasks[session.sid]
     try:
-        frame = base64.b64decode(data["frame"])
-
         # here the image frame could be processed or passed to the worker using the internal queue
-
+        data["frame"]
         #task.store_image({"sid": session.sid, 
         #                  "websocket_id": task.websocket_id, 
         #                  "timestamp": timestamp, 
         #                  "decoded": False}, 
-        #                 np.frombuffer(frame, dtype=np.uint8))
+        #                 np.frombuffer(data["frame"], dtype=np.uint8))
     except (ValueError, binascii.Error) as error:
         logging.error(f"Failed to decode frame data: {error}")
         flask_socketio.emit("image_error", 
