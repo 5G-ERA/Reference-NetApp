@@ -77,7 +77,7 @@ def image_callback(msg: Image):
         return
     if cv_image is not None:
         metadata = {"timestamp": Time.from_msg(msg.header.stamp).nanoseconds,
-                    "recv_timestamp": node.get_clock().now().nanoseconds, }
+                    "recv_timestamp": node.get_clock().now().nanoseconds}
         task_handler.store_data(metadata, cv_image)
     else:
         node.get_logger().warning("Empty image received!")
@@ -101,7 +101,7 @@ def object_detector():
 
         # Spin until interrupted
         while rclpy.ok():
-            rclpy.spin_once(node)
+            rclpy.spin_once(node, timeout_sec=1.0)
         detector1.stop()
     except KeyboardInterrupt:
         if detector1 is not None:
