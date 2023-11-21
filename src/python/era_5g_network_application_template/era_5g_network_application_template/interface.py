@@ -135,12 +135,12 @@ def json_callback_http():
     return Response(status=200)
 
 @socketio.on('image', namespace='/data')
-def image_callback_websocket(data: dict):
+def image_callback_websocket(data: Dict):
     """
     Allows to receive jpg-encoded image using the websocket transport
 
     Args:
-        data (dict): An image frame and (optionally) related timestamp in format:
+        data (Dict): An image frame and (optionally) related timestamp in format:
             {'frame': 'bytes', 'timestamp': 'int'}
 
     Raises:
@@ -193,7 +193,7 @@ def json_callback_websocket(data):
     Allows to receive general json data using the websocket transport
 
     Args:
-        data (dict): NetApp-specific json data
+        data (Dict): NetApp-specific json data
 
     Raises:
         ConnectionRefusedError: Raised when attempt for connection were made

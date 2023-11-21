@@ -85,7 +85,7 @@ class ResultsReader(Thread):
         Publishes the results to the robot
 
         Args:
-            metadata (_type_): NetApp-specific metadata related to processed image.
+            metadata (_type_): 5G-ERA Network Application specific metadata related to processed image.
             results (_type_): The results of the detection.
         """
 

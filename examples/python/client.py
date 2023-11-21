@@ -16,6 +16,7 @@ import pycocotools.mask as masks_util  # for decoding masks
 from era_5g_client.client import NetAppClient, RunTaskMode
 from era_5g_client.exceptions import FailedToConnect
 from era_5g_client.dataclasses import MiddlewareInfo
+from era_5g_interface.channels import ChannelType, CallbackInfoClient
 
 image_storage: Dict[int, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
@@ -33,7 +34,7 @@ MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
 MIDDLEWARE_USER = os.getenv("MIDDLEWARE_USER", "00000000-0000-0000-0000-000000000000")
 # middleware password
 MIDDLEWARE_PASSWORD = os.getenv("MIDDLEWARE_PASSWORD", "password")
-# middleware NetApp id (task id)
+# middleware 5G-ERA Network Application id (task id)
 MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-000000000000")
 # middleware robot id 
 MIDDLEWARE_ROBOT_ID = os.getenv("MIDDLEWARE_ROBOT_ID", "00000000-0000-0000-0000-000000000000")
@@ -107,7 +108,7 @@ class ResultsViewer(Thread):
 
 
 def get_results(results: Dict[str, Any]) -> None:
-    """Callback which process the results from the NetApp.
+    """Callback which process the results from the 5G-ERA Network Application.
 
     Args:
         results (str): The results in json format
@@ -141,15 +142,15 @@ def main() -> None:
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        # create an instance of NetApp client with results callback
-        client = NetAppClient(get_results)
+        # create an instance of 5G-ERA Network Application client with results callback
+        client = NetAppClient(callbacks_info={"results": CallbackInfoClient(ChannelType.JSON, get_results)})
         # authenticates with the middleware
         client.connect_to_middleware(MiddlewareInfo(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD))
         # run task, wait until is ready and register with it
-        client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER, ws_data=True)
+        client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER)
 
         if FROM_SOURCE:
-            # creates a video capture to pass images to the NetApp either from webcam ...
+            # creates a video capture to pass images to the 5G-ERA Network Application either from webcam ...
             cap = cv2.VideoCapture(0)
             if not cap.isOpened():
                 raise Exception("Cannot open camera")
@@ -166,7 +167,7 @@ def main() -> None:
                 break
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
             image_storage[timestamp] = resized
-            client.send_image_ws(resized, timestamp)
+            client.send_image(resized, "image", ChannelType.JPEG, timestamp)
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")

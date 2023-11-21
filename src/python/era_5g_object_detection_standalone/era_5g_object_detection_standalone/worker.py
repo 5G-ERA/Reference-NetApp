@@ -1,10 +1,8 @@
-from abc import ABC
 import logging
-import cv2
 import time
-import socketio
-from typing import Dict, List
+from abc import ABC
 from queue import Queue, Empty
+from typing import Dict, List, Callable, Any
 
 from era_5g_object_detection_common.image_detector import ImageDetector
 
@@ -14,31 +12,24 @@ logger = logging.getLogger(__name__)
 
 
 class Worker(ImageDetector, ABC):
-    """
-    Worker object for image processing in standalone variant. Reads
-    data from passed queue, performs detection and returns results using
-    the flask app. Needs to be inherited to implement the process_image
-    method.
+    """Worker object for image processing in standalone variant. Reads data from passed queue, performs detection and
+    returns results using the flask app. Needs to be inherited to implement the process_image method.
     """
 
-    def __init__(self, image_queue: Queue, sio: socketio.Server, **kw):
-        """
-        Constructor
+    def __init__(self, image_queue: Queue, send_function: Callable[[Dict], None], **kw) -> None:
+        """Constructor.
 
         Args:
             image_queue (Queue): The queue with all to-be-processed images
-            app (_type_): The flask app for results publishing
+            send_function (Callable[[Dict], None]): Callback used to send results.
         """
 
         super().__init__(**kw)
         self.image_queue = image_queue
-        self.sio = sio
-        self.frame_id = 0
+        self.send_function = send_function
 
-    def run(self):
-        """
-        Periodically reads images from python internal queue process them.
-        """
+    def run(self) -> None:
+        """Periodically reads images from python internal queue process them."""
 
         logging.info(f"{self.name} thread is running.")
 
@@ -46,7 +37,7 @@ class Worker(ImageDetector, ABC):
             images = []
             metadata: List[Dict] = []
 
-            # try to get a batch (or at least something) from the queue
+            # Try to get a batch (or at least something) from the queue.
             for _ in range(BATCH_SIZE):
                 try:
                     data = self.image_queue.get(block=True, timeout=0.1)
@@ -68,61 +59,49 @@ class Worker(ImageDetector, ABC):
             for idx in range(len(metadata)):
                 metadata[idx]["timestamp_before_process"] = ts_before
 
-                if not metadata[idx].get("decoded", True):
-                    images[idx] = cv2.imdecode(image, cv2.IMREAD_COLOR)
-
-                self.frame_id += 1
-
             detections = self.process_images(images)
 
             ts_after = time.perf_counter_ns()
             for mt in metadata:
                 mt["timestamp_after_process"] = ts_after
 
-            logger.debug(f"Processing took {(ts_after-ts_before)/10**9}")
+            logger.debug(f"Processing took {(ts_after - ts_before) / 10 ** 9}")
 
             assert len(detections) == len(images)
 
             for idx in range(len(detections)):
                 self.publish_results(detections[idx], metadata[idx])
 
-    def publish_results(self, results, metadata):
-        """
-        Publishes the results to the robot
+    def publish_results(self, results: Dict, metadata: Dict[str, Any]) -> None:
+        """Publishes the results to the robot.
 
         Args:
-            results (_type_): The results of the detection.
-            metadata (_type_): NetApp-specific metadata related to processed image.
+            results (Dict): The results of the detection. TODO: Result format detail.
+            metadata (Dict[str, Any]): 5G-ERA Network Application specific metadata related to processed image.
+                TODO: describe the metadata
         """
 
         detections = list()
-        if results is not None:
-            for bbox, score, cls_id, cls_name in results:
-                det = dict()
-                det["bbox"] = [float(i) for i in bbox]
-                det["score"] = float(score)
-                det["class"] = int(cls_id)
-                det["class_name"] = str(cls_name)
+        for bbox, score, cls_id, cls_name in results:
+            det = dict()
+            det["bbox"] = [float(i) for i in bbox]
+            det["score"] = float(score)
+            det["class"] = int(cls_id)
+            det["class_name"] = str(cls_name)
 
-                detections.append(det)
+            detections.append(det)
 
-            send_timestamp = time.perf_counter_ns()
+        send_timestamp = time.perf_counter_ns()
 
-            self.latency_measurements.store_latency(
-                send_timestamp - metadata["recv_timestamp"]
-            )
+        self.latency_measurements.store_latency(send_timestamp - metadata["recv_timestamp"])
 
-            # TODO:check timestamp exists
-            r = {
-                "timestamp": metadata["timestamp"],
-                "recv_timestamp": metadata["recv_timestamp"],
-                "timestamp_before_process": metadata["timestamp_before_process"],
-                "timestamp_after_process": metadata["timestamp_after_process"],
-                "send_timestamp": send_timestamp,
-                "detections": detections,
-            }
-
-            # TODO figure out if emit is blocking or not (if so, it should be called from a separate thread)
-            self.sio.emit(
-                "message", r, namespace="/results", to=metadata["websocket_id"]
-            )
+        # Add timestamp to the results.
+        r = {
+            "timestamp": metadata.get("timestamp", 0),
+            "recv_timestamp": metadata.get("recv_timestamp", 0),
+            "timestamp_before_process": metadata["timestamp_before_process"],
+            "timestamp_after_process": metadata["timestamp_after_process"],
+            "send_timestamp": send_timestamp,
+            "detections": detections,
+        }
+        self.send_function(r)

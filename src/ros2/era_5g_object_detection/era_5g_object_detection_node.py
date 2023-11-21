@@ -12,14 +12,14 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import String
 
 from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ, QueueFullAction
-from era_5g_object_detection_common.mmdet_utils import MODEL_VARIANTS
 from era_5g_object_detection_standalone.worker import BATCH_SIZE
 from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker
 
-# limited size is used to discard outdated images if the processing takes too long, so the queue/delay does not rise indefinitely
+# limited size is used to discard outdated images if the processing takes too long, so the queue/delay does not rise
+# indefinitely
 image_queue = Queue(maxsize=BATCH_SIZE + 1)
 
-task_handler = TaskHandlerInternalQ("ros_node", image_queue, if_queue_full=QueueFullAction.DISCARD_OLDEST)
+task_handler = TaskHandlerInternalQ(image_queue, if_queue_full=QueueFullAction.DISCARD_OLDEST)
 
 INPUT_TOPIC = os.getenv("INPUT_TOPIC", None)
 OUTPUT_TOPIC = os.getenv("OUTPUT_TOPIC", None)
@@ -31,41 +31,13 @@ bridge = CvBridge()
 
 class ObjectDetector(MMDetectorWorker):
     def __init__(self, image_queue: Queue, pub: Publisher, **kw):
-        super().__init__(image_queue, None, **kw)
+        super().__init__(image_queue, self.publish, **kw)
         self.pub = pub
 
-    def publish_results(self, results, metadata):
-        detections = list()
-
-        for result in results:
-            det = dict()
-            # process the results based on currently used model
-            if MODEL_VARIANTS[self.model_variant]["with_masks"]:
-                bbox, score, cls_id, cls_name, mask = result
-                det["mask"] = mask
-            else:
-                bbox, score, cls_id, cls_name = result
-            det["bbox"] = [float(i) for i in bbox]
-            det["score"] = float(score)
-            det["class"] = int(cls_id)
-            det["class_name"] = str(cls_name)
-
-            detections.append(det)
-
-        send_timestamp = node.get_clock().now().nanoseconds
-
-        # add timestamp to the results
-        r = {
-            "timestamp": metadata["timestamp"],
-            "recv_timestamp": metadata["recv_timestamp"],
-            "timestamp_before_process": metadata["timestamp_before_process"],
-            "timestamp_after_process": metadata["timestamp_after_process"],
-            "send_timestamp": send_timestamp,
-            "detections": detections,
-        }
-        results = String()
-        results.data = json.dumps(r)
-        self.pub.publish(results)
+    def publish(self, results):
+        results_msg = String()
+        results_msg.data = json.dumps(results)
+        self.pub.publish(results_msg)
 
 
 def image_callback(msg: Image):
@@ -76,8 +48,10 @@ def image_callback(msg: Image):
         node.get_logger().error(f"Can't convert image to cv2. {e}")
         return
     if cv_image is not None:
-        metadata = {"timestamp": Time.from_msg(msg.header.stamp).nanoseconds,
-                    "recv_timestamp": node.get_clock().now().nanoseconds}
+        metadata = {
+            "timestamp": Time.from_msg(msg.header.stamp).nanoseconds,
+            "recv_timestamp": node.get_clock().now().nanoseconds,
+        }
         task_handler.store_data(metadata, cv_image)
     else:
         node.get_logger().warning("Empty image received!")
@@ -111,8 +85,6 @@ def object_detector():
 
 if __name__ == "__main__":
     if None in [INPUT_TOPIC, OUTPUT_TOPIC]:
-        print(
-            "INPUT_TOPIC and OUTPUT_TOPIC environment variables needs to be specified!"
-        )
+        print("INPUT_TOPIC and OUTPUT_TOPIC environment variables needs to be specified!")
     else:
         object_detector()

@@ -1,4 +1,6 @@
-numpy>=1.23.*
-opencv-python>=4.6.0.66
-pycocotools==2.0.*
-setuptools
+numpy>=1.24.4
+opencv-python>=4.6
+pycocotools>=2.0.7
+setuptools>=69.0.2
+mmcv>=2.1.0
+mmdet>=3.2.0

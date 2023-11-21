@@ -8,7 +8,7 @@ version = "0.2.0"
 authors = [
   { name="Michal Kapinus", email="ikapinus@fit.vutbr.cz" },
 ]
-description = "Common stuff for object detection NetApps"
+description = "Common stuff for object detection 5G-ERA Network Applications"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
@@ -17,3 +17,5 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[tool.black]
+line-length = 120

@@ -1,6 +1,6 @@
 # era_5g_object_detection_common
 
-Support classes for 5G-ERA object detectors NetApps.
+Support classes for 5G-ERA object detectors 5G-ERA Network Applications.
 
 ## Installation
 
@@ -13,13 +13,9 @@ pip3 install .
 
 ## Classes
 
-### ThreadBase (common.py)
-
-Base Thread class which provides handy methods.
-
 ### ImageDetector (image_detector.py)
 
-The base class for NetApps based on image processing. Provides abstract methods for processing images and publishing results. It is based on Threads.
+The base class for 5G-ERA Network Applications based on image processing. Provides abstract methods for processing images and publishing results. It is based on Threads.
 
 ### FaceDetector (face_detector.py)
 
@@ -41,15 +37,27 @@ Universal detector based on MMDET package.
 
 Requirements, install steps:
 
-```bash
+```
 pip3 install torch torchvision torchaudio
-pip3 install mmcv-full
+
+pip install -U openmim
+mim install mmcv
+
 git clone https://github.com/open-mmlab/mmdetection.git
 cd mmdetection
 pip install -v -e .
-pip install mmdet
+
 cd configs/yolo/
-wget -c https://download.openmmlab.com/mmdetection/v2.0/yolo/yolov3_mobilenetv2_320_300e_coco/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth
+mim download mmdet --config yolov3_mobilenetv2_8xb24-320-300e_coco  --dest .
+mim download mmdet --config yolov3_d53_320_273e_coco  --dest .
+mim download mmdet --config yolov3_d53_mstrain-416_273e_coco  --dest .
+
+cd ../yolox/
+mim download mmdet --config yolox_tiny_8x8_300e_coco  --dest .
+
+cd ../mask_rcnn/
+mim download mmdet --config mask-rcnn_r50-caffe_fpn_ms-poly-3x_coco  --dest .
+
 ```
 
 System environment variables that must be set, e.g.:
