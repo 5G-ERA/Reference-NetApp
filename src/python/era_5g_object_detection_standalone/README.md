@@ -1,10 +1,10 @@
 # era_5g_object_detection_standalone
 
-Implementation of standalone variant of object detector NetApp.
+Implementation of standalone variant of object detector 5G-ERA Network Application.
 
 ## Reference implementation
 
-The reference implementation of the NetApp client is provided in the file era_5g_object_detection_standalone/interface.py. 
+The reference implementation of the 5G-ERA Network Application client is provided in the file era_5g_object_detection_standalone/interface.py. 
 
 ## Installation
 
@@ -15,14 +15,14 @@ pip3 install -r requirements.txt
 pip3 install .
 ```
 
-An era_5g_object_detection_standalone binary could be used to run the NetApp once the package is installed. 
+An era_5g_object_detection_standalone binary could be used to run the 5G-ERA Network Application once the package is installed. 
 
 ## Examples
 
 System environment variable that can be set, e.g.:
 
 ```
-# port of the NetApp's server (default is 5896)
+# port of the 5G-ERA Network Application's server (default is 5896)
 export NETAPP_PORT=5897
 ```
 

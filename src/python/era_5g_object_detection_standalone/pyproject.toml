@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "era_5g_object_detection_standalone"
-version = "0.0.1"
+version = "0.2.0"
 authors = [
   { name="Michal Kapinus", email="ikapinus@fit.vutbr.cz" },
 ]
-description = "Object detection standalone NetApp"
+description = "Object detection standalone 5G-ERA Network Application"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
@@ -16,6 +16,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+
+[project.scripts]
+era_5g_object_detection_standalone = "era_5g_object_detection_standalone.interface:main"
 
 [tool.black]
 line-length = 120

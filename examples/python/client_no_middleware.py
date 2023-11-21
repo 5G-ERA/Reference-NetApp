@@ -16,6 +16,7 @@ import numpy as np
 
 from era_5g_client.client_base import NetAppClientBase
 from era_5g_client.exceptions import FailedToConnect
+from era_5g_interface.channels import CallbackInfoClient, ChannelType
 from era_5g_interface.utils.rate_timer import RateTimer
 from utils.results_viewer import ResultsViewer
 
@@ -125,7 +126,7 @@ def main() -> None:
 
     try:
         # creates an instance of NetApp client with results callback
-        client = NetAppClientBase(get_results)
+        client = NetAppClientBase({"results": CallbackInfoClient(ChannelType.JSON, get_results)})
         # register with an ad-hoc deployed NetApp
         netapp_address = f"http://{NETAPP_ADDRESS}:{NETAPP_PORT}/"
         client.register(netapp_address)
@@ -154,7 +155,7 @@ def main() -> None:
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
             if not args.no_results:
                 image_storage[timestamp] = resized
-            client.send_image_ws(resized, timestamp)
+            client.send_image(resized, "image", ChannelType.JPEG, timestamp)
             rate_timer.sleep()  # sleep until next frame should be sent (with given fps)
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")

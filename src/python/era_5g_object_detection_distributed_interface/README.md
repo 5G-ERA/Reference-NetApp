@@ -1,11 +1,11 @@
 # era_5g_object_detection_distributed_interface
 
-Implementation of distributed variant of object detector NetApp interface. 
+Implementation of distributed variant of object detector 5G-ERA Network Application interface. 
 Requires the opencv to be compiled with the support of Gstreamer.
 
 ## Reference implementation
 
-The reference implementation of the NetApp interface is provided in the file 
+The reference implementation of the 5G-ERA Network Application interface is provided in the file 
 era_5g_object_detection_distributed_interface/interface.py.
 
 ## Installation
@@ -22,7 +22,7 @@ pip3 install .
 System environment variable that can be set, e.g.:
 
 ```
-# port of the NetApp's server (default is 5896)
+# port of the 5G-ERA Network Application's server (default is 5896)
 export NETAPP_PORT=5897
 ```
 

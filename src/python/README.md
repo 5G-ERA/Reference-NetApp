@@ -7,28 +7,17 @@ cd Reference-NetApp
 
 python3 -m venv env
 source env/bin/activate
+```
 
-cd
-cp -r /srv/opencv ~
-pip3 install ~/opencv/*.whl
+To properly install mmcv, it is first necessary to install torch with CUDA and then mmcv according to the 
+instructions, e.g. [here](era_5g_object_detection_common/README.md) 
 
-# Install client from era-5g-client repository
-
-# Install NetApp interface from era-5g-interface repository
-
+```bash
 cd Reference-NetApp/src/python/era_5g_object_detection_common
-pip3 install -r requirement.txt
-pip3 install -e .
-
-cd ../era_5g_object_detection_distributed_interface
-pip3 install -r requirement.txt
-pip3 install -e .
-
-cd ../era_5g_object_detection_distributed_worker
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 pip3 install -e .
 
 cd ../era_5g_object_detection_standalone
-pip3 install -r requirement.txt
+pip3 install -r requirements.txt
 pip3 install -e .
 ```

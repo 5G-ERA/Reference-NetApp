@@ -1,47 +1,42 @@
-import numpy as np
 import base64
 
+import numpy as np
 import pycocotools.mask as masks_util
-from mmdet.core import get_classes
+from mmdet.evaluation import get_classes
 
 DEBUG = True
 
 # mmDetection model config and checkpoint files (=allowed values of NETAPP_MODEL_VARIANT env variable)
 MODEL_VARIANTS = {
-    'yolov3_mobilenet': {
-        'config_file': 'configs/yolo/yolov3_mobilenetv2_320_300e_coco.py',
-        'checkpoint_file': 'configs/yolo/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth',
-        'with_masks': False
+    "yolov3_mobilenet": {
+        "config_file": "configs/yolo/yolov3_mobilenetv2_8xb24-320-300e_coco.py",
+        "checkpoint_file": "configs/yolo/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth",
+        "with_masks": False,
     },
-
-    'cv2_faces': {  # Only added so that a tag name exists for the old opencv face detector
-        'with_masks': False,
+    "cv2_faces": {  # Only added so that a tag name exists for the old opencv face detector
+        "with_masks": False,  # TODO: this crashes on config_file and checkpoint_file open!
     },
-
-    'mask_rcnn_r50': {
-        'config_file': 'configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py',
-        'checkpoint_file': 'configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco_bbox_mAP-0.408__segm_mAP-0'
-                           '.37_20200504_163245-42aa3d00.pth',
-        'with_masks': True
+    "mask_rcnn_r50": {
+        "config_file": "configs/mask_rcnn/mask-rcnn_r50-caffe_fpn_ms-poly-3x_coco.py",
+        "checkpoint_file": "configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco_bbox_mAP-0.408__segm_mAP-0"
+        ".37_20200504_163245-42aa3d00.pth",
+        "with_masks": True,
     },
-    'yolox_tiny': {
-        'config_file': 'configs/yolox/yolox_tiny_8x8_300e_coco.py',
-        'checkpoint_file': 'configs/yolox/yolox_tiny_8x8_300e_coco_20211124_171234-b4047906.pth',
-        'with_masks': False
+    "yolox_tiny": {
+        "config_file": "configs/yolox/yolox_tiny_8x8_300e_coco.py",
+        "checkpoint_file": "configs/yolox/yolox_tiny_8x8_300e_coco_20211124_171234-b4047906.pth",
+        "with_masks": False,
     },
-                                                                                      
-    'yolo_dark_net': {                                                           
-       'config_file': 'configs/yolo/yolov3_d53_320_273e_coco.py',                                                             
-       'checkpoint_file': 'configs/yolo/yolov3_d53_320_273e_coco-421362b6.pth',                                                         
-       'with_masks': False                                                             
+    "yolo_dark_net": {
+        "config_file": "configs/yolo/yolov3_d53_320_273e_coco.py",
+        "checkpoint_file": "configs/yolo/yolov3_d53_320_273e_coco-421362b6.pth",
+        "with_masks": False,
     },
- 
-    'yolo_dark_net2': {                                                           
-       'config_file': 'configs/yolo/yolov3_d53_mstrain-416_273e_coco.py',                                                             
-       'checkpoint_file': 'configs/yolo/yolov3_d53_mstrain-416_273e_coco-2b60fcd9.pth',                                                         
-       'with_masks': False                                                             
-    }, 
-
+    "yolo_dark_net2": {
+        "config_file": "configs/yolo/yolov3_d53_mstrain-416_273e_coco.py",
+        "checkpoint_file": "configs/yolo/yolov3_d53_mstrain-416_273e_coco-2b60fcd9.pth",
+        "with_masks": False,
+    },
     # Example:
     # 'model_variant_name': {
     #    'config_file': '',
@@ -51,27 +46,20 @@ MODEL_VARIANTS = {
 }
 
 
-def convert_mmdet_result(result, dataset='coco', score_thr=0.5, with_mask=False, merged_data=True):
+def convert_mmdet_result(result, dataset="coco", score_thr=0.5, with_mask=False, merged_data=True):
     # Convert raw results from mmDet to a desired format.
     # inspired by:
     # https://github.com/open-mmlab/mmdetection/issues/248#issuecomment-454276078
     # and
     # https://vinleonardo.com/detecting-objects-in-pictures-and-extracting-their-data-using-mmdetection/
 
-    segm_result = None
+    masks_raw = None
     if with_mask:
-        bbox_result, segm_result = result
-    else:
-        bbox_result = result
+        masks_raw = result.pred_instances.masks.cpu().numpy()
 
-    class_ids_raw = [
-        np.full(bbox.shape[0], i, dtype=np.int32) \
-        for i, bbox in enumerate(bbox_result)
-    ]
-    class_ids_raw = np.concatenate(class_ids_raw)
-    bboxes_with_scores = np.vstack(bbox_result)
-    scores_raw = bboxes_with_scores[:, -1]
-    bboxes_raw = bboxes_with_scores[:, :-1]
+    class_ids_raw = result.pred_instances.labels.cpu().numpy()
+    bboxes_raw = result.pred_instances.bboxes.cpu().numpy()
+    scores_raw = result.pred_instances.scores.cpu().numpy()
     filtered_inds = np.where(scores_raw > score_thr)[0]
     bboxes = bboxes_raw[filtered_inds]
     scores = scores_raw[filtered_inds]
@@ -81,9 +69,7 @@ def convert_mmdet_result(result, dataset='coco', score_thr=0.5, with_mask=False,
     class_names = [all_class_names[i] for i in class_ids]
 
     if with_mask:
-        # original results have length of num_classes, and then for each class there are individual detections
-        all_masks = np.array([item for sublist in segm_result for item in sublist])  # flatten the structure
-        filtered_masks = all_masks[filtered_inds]  # filter by given confidence threshold
+        filtered_masks = masks_raw[filtered_inds]  # filter by given confidence threshold
 
         # Encode (compress) masks using RLE
         # inspired by encode_mask_results function:
@@ -93,14 +79,14 @@ def convert_mmdet_result(result, dataset='coco', score_thr=0.5, with_mask=False,
         encoded_masks = []
         for cls_segm in filtered_masks:
             # each mask is transformed into a dict with format: {'size': [h, w], 'counts': b'encoded_mask_binary_data'}
-            mask = masks_util.encode(np.array(cls_segm[:, :, np.newaxis], order='F', dtype='uint8'))[0]  # RLE
+            mask = masks_util.encode(np.array(cls_segm[:, :, np.newaxis], order="F", dtype="uint8"))[0]  # RLE
             encoded_masks.append(mask)
 
         # Base64 encoding
         for mask in encoded_masks:
             mask_data = mask["counts"]
             b64enc_data_bin = base64.b64encode(mask_data)  # returns base64 encoded data in binary format
-            b64end_data_str = b64enc_data_bin.decode('ascii')  # converts base64 encoded binary data to string
+            b64end_data_str = b64enc_data_bin.decode("ascii")  # converts base64 encoded binary data to string
             mask["counts"] = b64end_data_str
 
     if merged_data:

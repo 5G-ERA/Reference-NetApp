@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [
   { name="Michal Kapinus", email="ikapinus@fit.vutbr.cz" },
 ]
-description = "Object detection distributed NetApp"
+description = "Object detection distributed 5G-ERA Network Application"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [

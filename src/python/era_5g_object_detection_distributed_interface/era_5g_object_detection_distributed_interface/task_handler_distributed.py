@@ -16,7 +16,7 @@ class TaskHandlerDistributed(TaskHandler, ABC):
         Constructor
 
         Args:
-            sid (str): The session id obtained from NetApp client. It is used to 
+            sid (str): The session id obtained from 5G-ERA Network Application client. It is used to
                 match the results with the data sender.
             port (int): The port where the Gstreamer pipeline should listen to.
             jobs_info_queue (Queue): Queue with all to-be-processed jobs.
@@ -30,8 +30,8 @@ class TaskHandlerDistributed(TaskHandler, ABC):
         Method which will call the remote processing using Celery and RabbitMQ.
 
         Args:
-            metadata (dict): Arbitrary dictionary with metadata related to the image.
-                The format is NetApp-specific.
+            metadata (Dict): Arbitrary dictionary with metadata related to the image.
+                The format is 5G-ERA Network Application specific.
             image (_type_): The image to be processed.
         """
 

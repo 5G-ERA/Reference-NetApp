@@ -16,7 +16,7 @@ from flask import Flask, Response, request, session
 
 from flask_session import Session
 
-# port of the netapp's server
+# port of the 5G-ERA Network Application's server
 NETAPP_PORT = os.getenv("NETAPP_PORT", 5896)
 
 # flask initialization
@@ -131,12 +131,12 @@ def image_callback_http():
 
 
 @socketio.on('image', namespace='/data')
-def image_callback_websocket(data: dict):
+def image_callback_websocket(data: Dict):
     """
     Allows to receive jpg-encoded image using the websocket transport
 
     Args:
-        data (dict): An image frame and (optionally) related timestamp in format:
+        data (Dict): An image frame and (optionally) related timestamp in format:
             {'frame': 'bytes', 'timestamp': 'int'}
 
     Raises:

@@ -8,7 +8,7 @@ ASSETS_PATH="$ROOT_PATH/assets"
 # IP address or hostname of the computer, where the NetworkApp is deployed
 export NETAPP_ADDRESS="127.0.0.1"
 
-# Port of the netapp's server
+# Port of the 5G-ERA Network Application's server
 export NETAPP_PORT="5896"
 
 # File with video test video
