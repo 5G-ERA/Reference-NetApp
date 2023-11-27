@@ -40,7 +40,7 @@ class Worker(ImageDetector, ABC):
             # Try to get a batch (or at least something) from the queue.
             for _ in range(BATCH_SIZE):
                 try:
-                    data = self.image_queue.get(block=True, timeout=0.1)
+                    data = self.image_queue.get(block=True, timeout=0.001)
                     mt, image = data
                 except Empty:
                     break
