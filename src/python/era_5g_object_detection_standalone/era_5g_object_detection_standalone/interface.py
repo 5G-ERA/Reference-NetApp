@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import sys
-import threading
 import time
 import traceback
 from queue import Queue
@@ -12,7 +11,7 @@ import numpy as np
 
 from era_5g_interface.channels import CallbackInfoServer, ChannelType, DATA_NAMESPACE, DATA_ERROR_EVENT
 from era_5g_interface.dataclasses.control_command import ControlCommand, ControlCmdType
-from era_5g_interface.interface_helpers import HeartBeatSender, MIDDLEWARE_REPORT_INTERVAL
+from era_5g_interface.interface_helpers import HeartBeatSender, MIDDLEWARE_REPORT_INTERVAL, RepeatedTimer
 from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
 from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
 from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker
@@ -62,10 +61,11 @@ class Server(NetworkApplicationServer):
         self.tasks: Dict[str, TaskHandlerInternalQ] = {}
 
         self.heart_beat_sender = HeartBeatSender()
-        self.heart_beat_timer()
+        heart_beat_timer = RepeatedTimer(MIDDLEWARE_REPORT_INTERVAL, self.heart_beat)
+        heart_beat_timer.start()
 
-    def heart_beat_timer(self):
-        """Heart beat timer."""
+    def heart_beat(self):
+        """Heart beat generation and sending."""
 
         latencies = []
         for worker in self.detector_threads.values():
@@ -75,7 +75,7 @@ class Server(NetworkApplicationServer):
             avg_latency = float(np.mean(np.array(latencies)))
 
         queue_size = NETAPP_INPUT_QUEUE
-        queue_occupancy = 1
+        queue_occupancy = 1  # TODO: Compute for every worker?
 
         self.heart_beat_sender.send_middleware_heart_beat(
             avg_latency=avg_latency,
@@ -83,7 +83,6 @@ class Server(NetworkApplicationServer):
             queue_occupancy=queue_occupancy,
             current_robot_count=len(self.tasks),
         )
-        threading.Timer(MIDDLEWARE_REPORT_INTERVAL, self.heart_beat_timer).start()
 
     def image_callback(self, sid: str, data: Dict[str, Any]):
         """Allows to receive decoded image using the websocket transport.
@@ -148,6 +147,7 @@ class Server(NetworkApplicationServer):
                     image_queue,
                     lambda results: self.send_data(data=results, event="results", sid=self.get_sid_of_data(eio_sid)),
                     name=f"Detector {eio_sid}",
+                    daemon=True,
                 )
             except Exception as ex:
                 logger.error(f"Failed to create Detector: {repr(ex)}")
