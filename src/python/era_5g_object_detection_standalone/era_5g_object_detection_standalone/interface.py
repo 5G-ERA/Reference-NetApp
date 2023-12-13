@@ -97,7 +97,7 @@ class Server(NetworkApplicationServer):
 
         if eio_sid not in self.tasks:
             logger.error("Non-registered client tried to send data")
-            self.send_data({"message": "Non-registered client tried to send data"}, DATA_ERROR_EVENT, sid)
+            self.send_data({"message": "Non-registered client tried to send data"}, DATA_ERROR_EVENT, sid=sid)
             return
 
         task = self.tasks[eio_sid]
