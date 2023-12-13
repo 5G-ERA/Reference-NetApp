@@ -31,7 +31,7 @@ class Worker(ImageDetector, ABC):
     def run(self) -> None:
         """Periodically reads images from python internal queue process them."""
 
-        logging.info(f"{self.name} thread is running.")
+        logger.info(f"{self.name} thread is running.")
 
         while not self.stop_event.is_set():
             images = []
