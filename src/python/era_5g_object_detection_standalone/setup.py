@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="era_5g_object_detection_standalone",
-    version="0.2.0",
+    version="0.3.0",
     description="Standalone variant of object detection NetApp",
     author="Michal Kapinus",
     author_email="ikapinus@fit.vutbr.cz",
