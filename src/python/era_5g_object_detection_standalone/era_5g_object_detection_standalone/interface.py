@@ -77,7 +77,7 @@ class Server(NetworkApplicationServer):
         queue_size = NETAPP_INPUT_QUEUE
         queue_occupancy = 1  # TODO: Compute for every worker?
 
-        self.heart_beat_sender.send_middleware_heart_beat(
+        self.heart_beat_sender.send_application_heart_beat(
             avg_latency=avg_latency,
             queue_size=queue_size,
             queue_occupancy=queue_occupancy,
@@ -104,8 +104,7 @@ class Server(NetworkApplicationServer):
         task.store_data({"timestamp": data["timestamp"], "recv_timestamp": time.perf_counter_ns()}, data["frame"])
 
     def json_callback(self, sid: str, data: Dict):
-        """
-        Allows to receive general json data using the websocket transport
+        """Allows to receive general json data using the websocket transport.
 
         Args:
             sid (str): Namespace sid.
@@ -115,8 +114,7 @@ class Server(NetworkApplicationServer):
         logger.info(f"Client with task id: {self.get_eio_sid_of_data(sid)} sent data {data}")
 
     def command_callback(self, command: ControlCommand, sid: str) -> Tuple[bool, str]:
-        """
-        Receive and process Control Commands.
+        """Receive and process Control Commands.
 
         Args:
             command (ControlCommand): Control command to be processed.
