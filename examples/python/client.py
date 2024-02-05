@@ -17,6 +17,7 @@ from era_5g_client.client import NetAppClient, RunTaskMode
 from era_5g_client.exceptions import FailedToConnect
 from era_5g_client.dataclasses import MiddlewareInfo
 from era_5g_interface.channels import ChannelType, CallbackInfoClient
+from era_5g_interface.exceptions import BackPressureException
 
 image_storage: Dict[int, np.ndarray] = dict()
 results_storage: Queue[Dict[str, Any]] = Queue()
@@ -26,6 +27,7 @@ DEBUG_PRINT_SCORE = False  # useful for FPS detector
 DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiving the results
 DEBUG_DRAW_MASKS = True  # draw segmentation masks (if provided by detector)
 
+SHOW_RESULTS = os.getenv("SHOW_RESULTS", "true").lower() in ("true", "1")
 # Video from source flag
 FROM_SOURCE = False
 # ip address or hostname of the middleware server
@@ -122,9 +124,9 @@ def get_results(results: Dict[str, Any]) -> None:
 
 def main() -> None:
     """Creates the client class and starts the data transfer."""
-
-    results_viewer = ResultsViewer(name="test_client_http_viewer", daemon=True)
-    results_viewer.start()
+    if SHOW_RESULTS:
+        results_viewer = ResultsViewer(name="test_client_http_viewer", daemon=True)
+        results_viewer.start()
 
     logging.getLogger().setLevel(logging.INFO)
 
@@ -136,7 +138,8 @@ def main() -> None:
         print(f"Terminating ({signal.Signals(sig).name})...")
         global stopped
         stopped = True
-        results_viewer.stop()
+        if SHOW_RESULTS:
+            results_viewer.stop()
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
@@ -166,8 +169,12 @@ def main() -> None:
             if not ret:
                 break
             resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
-            image_storage[timestamp] = resized
-            client.send_image(resized, "image", ChannelType.JPEG, timestamp)
+            if SHOW_RESULTS:
+                image_storage[timestamp] = resized
+            try:
+                client.send_image(resized, "image", ChannelType.JPEG, timestamp)
+            except BackPressureException:
+                print("Failed to send image due to back pressure")
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
@@ -177,7 +184,8 @@ def main() -> None:
         traceback.print_exc()
         print(f"Failed to create client instance ({repr(ex)})")
     finally:
-        results_viewer.stop()
+        if SHOW_RESULTS:
+            results_viewer.stop()
         if client is not None:
             client.disconnect()
 
