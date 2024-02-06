@@ -28,8 +28,10 @@ DEBUG_PRINT_DELAY = False  # prints the delay between capturing image and receiv
 DEBUG_DRAW_MASKS = True  # draw segmentation masks (if provided by detector)
 
 SHOW_RESULTS = os.getenv("SHOW_RESULTS", "true").lower() in ("true", "1")
+# If set to true, the client will go through the folder of images (specified by DATA_FOLDER env variable) and send them to the server
+IMAGES = os.getenv("IMAGES", "false").lower() in ("true", "1")
 # Video from source flag
-FROM_SOURCE = False
+FROM_SOURCE = os.getenv("IMAGES", "false").lower() in ("true", "1")
 # ip address or hostname of the middleware server
 MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
 # middleware user
@@ -41,14 +43,22 @@ MIDDLEWARE_TASK_ID = os.getenv("MIDDLEWARE_TASK_ID", "00000000-0000-0000-0000-00
 # middleware robot id 
 MIDDLEWARE_ROBOT_ID = os.getenv("MIDDLEWARE_ROBOT_ID", "00000000-0000-0000-0000-000000000000")
 
-# test video file
-try:
-    TEST_VIDEO_FILE = os.environ["TEST_VIDEO_FILE"]
-except KeyError as e:
-    raise Exception(f"Failed to run example, env variable {e} not set.")
+if IMAGES:
+    try:
+        DATA_FOLDER = os.environ["DATA_FOLDER"]
+    except KeyError as e:
+        raise Exception(f"Failed to run example, env variable {e} not set.")
+    if not os.path.exists(DATA_FOLDER):
+        raise Exception("DATA_FOLDER does not contain valid path to a folder.")
+elif not FROM_SOURCE:
+    # test video file
+    try:
+        TEST_VIDEO_FILE = os.environ["TEST_VIDEO_FILE"]
+    except KeyError as e:
+        raise Exception(f"Failed to run example, env variable {e} not set.")
 
-if not os.path.isfile(TEST_VIDEO_FILE):
-    raise Exception("TEST_VIDEO_FILE does not contain valid path to a file.")
+    if not os.path.isfile(TEST_VIDEO_FILE):
+        raise Exception("TEST_VIDEO_FILE does not contain valid path to a file.")
 
 
 class ResultsViewer(Thread):
@@ -143,7 +153,6 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
-
     try:
         # create an instance of 5G-ERA Network Application client with results callback
         client = NetAppClient(callbacks_info={"results": CallbackInfoClient(ChannelType.JSON, get_results)})
@@ -151,30 +160,48 @@ def main() -> None:
         client.connect_to_middleware(MiddlewareInfo(MIDDLEWARE_ADDRESS, MIDDLEWARE_USER, MIDDLEWARE_PASSWORD))
         # run task, wait until is ready and register with it
         client.run_task(MIDDLEWARE_TASK_ID, MIDDLEWARE_ROBOT_ID, True, RunTaskMode.WAIT_AND_REGISTER)
-
-        if FROM_SOURCE:
-            # creates a video capture to pass images to the 5G-ERA Network Application either from webcam ...
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                raise Exception("Cannot open camera")
+        if IMAGES:
+            # creates a video capture to pass images to the 5G-ERA Network Application from a folder
+            print(f"Total images: {len(os.listdir(DATA_FOLDER))}")
+            index = 0
+            for filename in os.listdir(DATA_FOLDER):
+                print(filename)
+                if filename.endswith(".jpg") or filename.endswith(".png"):
+                    img = cv2.imread(os.path.join(DATA_FOLDER, filename))
+                    timestamp = index
+                    index += 1
+                    if SHOW_RESULTS:
+                        image_storage[timestamp] = img
+                    if img is not None:
+                        try:
+                            client.send_image(img, "image", ChannelType.JPEG, timestamp)
+                        except BackPressureException:
+                            print("Failed to send image due to back pressure")
+            time.sleep(10)
         else:
-            # or from video file
-            cap = cv2.VideoCapture(TEST_VIDEO_FILE)
-            if not cap.isOpened():
-                raise Exception("Cannot open video file")
+            if FROM_SOURCE:
+                # creates a video capture to pass images to the 5G-ERA Network Application either from webcam ...
+                cap = cv2.VideoCapture(0)
+                if not cap.isOpened():
+                    raise Exception("Cannot open camera")
+            else:
+                # or from video file
+                cap = cv2.VideoCapture(TEST_VIDEO_FILE)
+                if not cap.isOpened():
+                    raise Exception("Cannot open video file")
 
-        while not stopped:
-            ret, frame = cap.read()
-            timestamp = time.perf_counter_ns()
-            if not ret:
-                break
-            resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
-            if SHOW_RESULTS:
-                image_storage[timestamp] = resized
-            try:
-                client.send_image(resized, "image", ChannelType.JPEG, timestamp)
-            except BackPressureException:
-                print("Failed to send image due to back pressure")
+            while not stopped:
+                ret, frame = cap.read()
+                timestamp = time.perf_counter_ns()
+                if not ret:
+                    break
+                resized = cv2.resize(frame, (640, 480), interpolation=cv2.INTER_AREA)
+                if SHOW_RESULTS:
+                    image_storage[timestamp] = resized
+                try:
+                    client.send_image(resized, "image", ChannelType.JPEG, timestamp)
+                except BackPressureException:
+                    print("Failed to send image due to back pressure")
 
     except FailedToConnect as ex:
         print(f"Failed to connect to server ({ex})")
