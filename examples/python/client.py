@@ -31,7 +31,7 @@ SHOW_RESULTS = os.getenv("SHOW_RESULTS", "true").lower() in ("true", "1")
 # If set to true, the client will go through the folder of images (specified by DATA_FOLDER env variable) and send them to the server
 IMAGES = os.getenv("IMAGES", "false").lower() in ("true", "1")
 # Video from source flag
-FROM_SOURCE = os.getenv("IMAGES", "false").lower() in ("true", "1")
+FROM_SOURCE = os.getenv("FROM_SOURCE", "false").lower() in ("true", "1")
 # ip address or hostname of the middleware server
 MIDDLEWARE_ADDRESS = os.getenv("MIDDLEWARE_ADDRESS", "127.0.0.1")
 # middleware user
