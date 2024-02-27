@@ -2,7 +2,7 @@ FROM nvidia/cuda:12.3.1-base-ubuntu22.04
 # CUDA image is needed for kubernetes
 
 RUN apt-get update \
-    && apt-get install -y python3-pip python-is-python3 git ffmpeg
+    && apt-get install -y tzdata python3-pip python-is-python3 git ffmpeg
 
 RUN pip install --upgrade pip
 

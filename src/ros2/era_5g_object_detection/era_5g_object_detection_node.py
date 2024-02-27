@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from queue import Queue
 from typing import Optional
 
@@ -50,7 +51,8 @@ def image_callback(msg: Image):
     if cv_image is not None:
         metadata = {
             "timestamp": Time.from_msg(msg.header.stamp).nanoseconds,
-            "recv_timestamp": node.get_clock().now().nanoseconds,
+            #"recv_timestamp": node.get_clock().now().nanoseconds,
+            "recv_timestamp": time.perf_counter_ns(),
         }
         task_handler.store_data(metadata, cv_image)
     else:
