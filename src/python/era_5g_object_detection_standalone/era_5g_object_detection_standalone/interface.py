@@ -11,13 +11,13 @@ import numpy as np
 
 from era_5g_interface.channels import CallbackInfoServer, ChannelType, DATA_NAMESPACE, DATA_ERROR_EVENT
 from era_5g_interface.dataclasses.control_command import ControlCommand, ControlCmdType
-from era_5g_interface.interface_helpers import HeartBeatSender, MIDDLEWARE_REPORT_INTERVAL, RepeatedTimer
+from era_5g_interface.interface_helpers import HeartbeatSender
 from era_5g_interface.task_handler_internal_q import TaskHandlerInternalQ
 from era_5g_object_detection_common.image_detector import ImageDetector, ImageDetectorInitializationFailed
 from era_5g_object_detection_standalone.worker_face import FaceDetectorWorker
 from era_5g_object_detection_standalone.worker_fps import FpsDetectorWorker
 from era_5g_object_detection_standalone.worker_mmdet import MMDetectorWorker
-from era_5g_server.server import NetworkApplicationServer
+from era_5g_server.server import NETAPP_STATUS_ADDRESS, NetworkApplicationServer, generate_application_heartbeat_data
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("Standalone 5G-ERA Network Application interface")
@@ -60,29 +60,25 @@ class Server(NetworkApplicationServer):
         # Dict of registered tasks.
         self.tasks: Dict[str, TaskHandlerInternalQ] = {}
 
-        self.heart_beat_sender = HeartBeatSender()
-        heart_beat_timer = RepeatedTimer(MIDDLEWARE_REPORT_INTERVAL, self.heart_beat)
-        heart_beat_timer.start()
+        # Create Heartbeat sender
+        self.heartbeat_sender = HeartbeatSender(NETAPP_STATUS_ADDRESS, self.generate_heartbeat_data)
 
-    def heart_beat(self):
+    def generate_heartbeat_data(self):
         """Heart beat generation and sending."""
 
         latencies = []
+        queue_occupancy = 0
+        queue_size = 0
+        for task in self.tasks.values():
+            queue_occupancy += task.data_queue_occupancy()
+            queue_size += task.data_queue_size()
         for worker in self.detector_threads.values():
             latencies.extend(worker.latency_measurements.get_latencies())
         avg_latency = 0
         if len(latencies) > 0:
             avg_latency = float(np.mean(np.array(latencies)))
 
-        queue_size = NETAPP_INPUT_QUEUE
-        queue_occupancy = 1  # TODO: Compute for every worker?
-
-        self.heart_beat_sender.send_application_heart_beat(
-            avg_latency=avg_latency,
-            queue_size=queue_size,
-            queue_occupancy=queue_occupancy,
-            current_robot_count=len(self.tasks),
-        )
+        return generate_application_heartbeat_data(avg_latency, queue_size, queue_occupancy, len(self.tasks))
 
     def image_callback(self, sid: str, data: Dict[str, Any]):
         """Allows to receive decoded image using the websocket transport.
@@ -198,8 +194,9 @@ def main():
         default="mmdetection",
         help="Select detector. Available options are opencv, mmdetection, fps. Default is mmdetection.",
     )
-
+    parser.add_argument("-m", "--measuring", type=bool, help="Enable extended measuring logs", default=False)
     args = parser.parse_args()
+
     global DetectorWorker
 
     # Creates detector and runs it as thread, listening to image_queue
@@ -224,7 +221,7 @@ def main():
     # runs the flask server
     # allow_unsafe_werkzeug needs to be true to run inside the docker
     # TODO: use better webserver
-    server = Server(port=NETAPP_PORT, host="0.0.0.0")
+    server = Server(port=NETAPP_PORT, host="0.0.0.0", extended_measuring=args.measuring)
 
     try:
         server.run_server()

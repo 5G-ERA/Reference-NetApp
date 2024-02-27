@@ -1,7 +1,7 @@
 FROM python:3.8-slim
 
 RUN apt-get update \
-    && apt-get install -y python3-pip python-is-python3 git ffmpeg
+    && apt-get install -y tzdata python3-pip python-is-python3 git ffmpeg
 
 RUN pip install --upgrade pip
 
