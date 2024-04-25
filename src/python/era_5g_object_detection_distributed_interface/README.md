@@ -1,7 +1,7 @@
 # era_5g_object_detection_distributed_interface
 
 Implementation of distributed variant of object detector 5G-ERA Network Application interface. 
-Requires the opencv to be compiled with the support of Gstreamer.
+This variant enables distributed processing of images with multiple workers using Celery as a task queue.
 
 ## Reference implementation
 
@@ -22,8 +22,14 @@ pip3 install .
 System environment variable that can be set, e.g.:
 
 ```
-# port of the 5G-ERA Network Application's server (default is 5896)
+# Port of the 5G-ERA Network Application's server (default is 5896)
 export NETAPP_PORT=5897
+
+# Url of Celery message broker (e.g. RabbitMQ):
+export CELERY_BROKER_URL="amqp://127.0.0.1:5672"
+
+# Url of Celery results backend (e.g. Redis)
+export CELERY_RESULT_BACKEND="redis://127.0.0.1:6379"
 ```
 
 ```bash
@@ -37,9 +43,8 @@ once the package is installed.
 
 ### ResultsReader (results_reader.py)
 
-Thread-based class which search the jobs queue for finished tasks and
-    publish results to the robot 
+Thread-based class which searches for finished tasks and publish results to the robot.
 
 ### TaskHandlerGstreamerRabbitmqRedis (task_handler_gstreamer_rabbitmq_redis.py)
 
-Task handler which stores the retrieved images to the RabbitMQ broker.
+Task handler which stores the retrieved images to the message broker.

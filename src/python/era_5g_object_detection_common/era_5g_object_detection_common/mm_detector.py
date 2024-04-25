@@ -1,6 +1,6 @@
 import os
 from abc import ABC
-from typing import List
+from typing import Dict, List, Any
 
 import numpy as np
 from mmdet.apis import init_detector, inference_detector
@@ -93,3 +93,23 @@ class MMDetector(ImageDetector, ABC):
         else:
             # TODO: raise an exception
             return []
+
+    def prepare_detections_for_publishing(self, results: BasicDetectorResultType) -> Dict[str, Any]:
+        """Convert results to a representation that is ready for publishing."""
+
+        detections = list()
+        for result in results:
+            det = dict()
+            # Process the results based on currently used model.
+            if MODEL_VARIANTS[self.model_variant]["with_masks"]:
+                bbox, score, cls_id, cls_name, mask = result
+                det["mask"] = mask
+            else:
+                bbox, score, cls_id, cls_name = result
+            det["bbox"] = [float(i) for i in bbox]
+            det["score"] = float(score)
+            det["class"] = int(cls_id)
+            det["class_name"] = str(cls_name)
+
+            detections.append(det)
+        return detections

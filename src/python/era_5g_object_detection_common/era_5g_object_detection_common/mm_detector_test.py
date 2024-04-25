@@ -30,22 +30,8 @@ class ObjectDetector(MMDetectorWorker):
         super().__init__(image_queue, self.publish_results, **kw)
 
     def publish_results(self, results, metadata):
-        detections = list()
-
-        for result in results:
-            det = dict()
-            # process the results based on currently used model
-            if MODEL_VARIANTS[self.model_variant]["with_masks"]:
-                bbox, score, cls_id, cls_name, mask = result
-                det["mask"] = mask
-            else:
-                bbox, score, cls_id, cls_name = result
-            det["bbox"] = [float(i) for i in bbox]
-            det["score"] = float(score)
-            det["class"] = int(cls_id)
-            det["class_name"] = str(cls_name)
-
-            detections.append(det)
+        
+        detections = self.prepare_detections_for_publishing(results)
 
         print(detections)
 

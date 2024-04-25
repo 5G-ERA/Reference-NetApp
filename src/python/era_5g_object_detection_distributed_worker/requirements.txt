@@ -1,3 +1,4 @@
-era_5g_object_detection_common==0.0.1
-celery==5.2.7
-redis>=4.3.4
+era_5g_object_detection_common~=0.2.0
+era_5g_interface~=0.10.1
+celery~=5.4.0
+redis~=5.0.3

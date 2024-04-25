@@ -1,20 +1,25 @@
-FROM but5gera/netapp_base_gstreamer:0.2.0
+FROM python:3.8-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Prague
 
 ENTRYPOINT ["/root/start.sh"]
 
 RUN apt-get update \
-    && apt-get install -y gcc
+    && apt-get install -y tzdata python3-pip python-is-python3 git ffmpeg
+
+RUN pip install --upgrade pip
 
 COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
 
 RUN cd /root/era_5g_object_detection_common \
-    && pip3 install -r requirement.txt \
+    && pip3 install -r requirements.txt \
     && pip3 install . 
 
 COPY python/era_5g_object_detection_distributed_interface /root/era_5g_object_detection_distributed_interface
 
 RUN cd /root/era_5g_object_detection_distributed_interface \
-    && pip3 install -r requirement.txt \
+    && pip3 install -r requirements.txt \
     && pip3 install . 
 
 COPY docker/era_5g_object_detection_distributed/start_interface.sh /root/start.sh
@@ -22,4 +27,4 @@ COPY docker/era_5g_object_detection_distributed/start_interface.sh /root/start.s
 RUN chmod +x /root/start.sh
 
 EXPOSE 5896
-EXPOSE 5001 5002 5003
+

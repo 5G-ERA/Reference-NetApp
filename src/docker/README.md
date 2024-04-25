@@ -22,8 +22,8 @@ sudo docker build . -f docker/era_5g_netapp_base_mmcv/gpu.Dockerfile -t but5gera
 
 ### era_5g_object_detection_standalone
 
-The reference implementation of standalone 5G-ERA Network Application docker image. The interface requires exposing 
-port to the hosts to work properly. The 5896 port is required for HTTP communication with the interface. 
+The reference implementation of standalone 5G-ERA Network Application docker image. The interface requires exposing a 
+port to the hosts to work properly. The 5896 port is required for communication with the interface. 
 Two Dockerfiles are provided, one for the CPU-only variant and one which includes the CUDA for GPU processing.
 
 How to build (CPU-only):
@@ -78,18 +78,40 @@ rosrun image_publisher image_publisher video.mp4
 ```
 
 ### era_5g_object_detection_distributed
-NOTE: obsolete, out of date, non-functional
-Contains two Dockerfiles for the building of _interface__* and *worker* image. The interface requires exposing several ports to the hosts to work properly. The 5896 port is required for HTTP communication with the interface. *N* other ports are needed for the *GStreamer* communication. This reference implementation allows up to three concurrent GStreamer connections on ports 5001, 5002 and 5003. These ports are specified in the *interface.py* script and exposed in the Dockerfile.interface and the *run* command bellow.
+Dockerfiles are provided for building *interface* and *worker* images. The interface requires exposing a 
+port to the hosts to work properly (default port is 5896).
 
 How to build:
 ```bash
 sudo docker build . -f docker/era_5g_object_detection_distributed/Dockerfile.interface -t but5gera/netapp_object_detection_distributed_interface:VERSION
-sudo docker build . -f docker/era_5g_object_detection_distributed/Dockerfile.worker -t but5gera/netapp_object_detection_distributed_worker:0.1.0
+sudo docker build . -f docker/era_5g_object_detection_distributed/Dockerfile.worker_gpu -t but5gera/netapp_object_detection_distributed_worker_gpu:VERSION
+sudo docker build . -f docker/era_5g_object_detection_distributed/Dockerfile.worker -t but5gera/netapp_object_detection_distributed_worker:VERSION
 ```
 
 How to run:
+
+Run RabbitMQ message broker and Redis for storing results:
 ```bash
-sudo docker run --rm -p 5896:5896 -p 5001-5003:5001-5003/udp but5gera/netapp_object_detection_distributed_interface:VERSION
-sudo docker run --rm but5gera/netapp_object_detection_distributed_worker:0.1.0
+sudo docker run -p 5672:5672 rabbitmq:3.13
+sudo docker run -p 6379:6379 redis:7.2
 ```
 
+Run worker (either CPU or GPU version) and Network Application interface.
+
+CPU worker:
+```bash
+sudo docker run --network=host -e CELERY_RESULT_BACKEND="redis://127.0.0.1:6379" but5gera/netapp_object_detection_distributed_worker:0.3.0
+```
+
+GPU worker:
+```bash
+sudo docker run --gpus=all --network=host -e CELERY_RESULT_BACKEND="redis://127.0.0.1:6379" but5gera/netapp_object_detection_distributed_worker_gpu:0.3.0
+```
+
+Run interface:
+```bash
+sudo docker run -p 5896:5896 --network=host -e CELERY_RESULT_BACKEND="redis://127.0.0.1:6379" but5gera/netapp_object_detection_distributed_interface:0.3.0
+
+```
+
+Note: Environment varibale CELERY_BROKER_URL can also be set when RabbitMQ is not running on localhost.

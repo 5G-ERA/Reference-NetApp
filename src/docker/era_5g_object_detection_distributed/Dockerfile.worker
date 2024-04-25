@@ -1,23 +1,15 @@
 FROM but5gera/netapp_base_mmcv_cpu:0.2.0
 
-RUN wget -c https://download.openmmlab.com/mmdetection/v2.0/yolo/yolov3_mobilenetv2_320_300e_coco/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth -O "/root/mmdetection/configs/yolo/yolov3_mobilenetv2_320_300e_coco_20210719_215349-d18dff72.pth"
-
-
-
-
-RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
-
-
 COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
 
 RUN cd /root/era_5g_object_detection_common \
-    && pip3 install -r requirement.txt \
+    && pip3 install -r requirements.txt \
     && pip3 install . 
 
 COPY python/era_5g_object_detection_distributed_worker /root/era_5g_object_detection_distributed_worker
 
 RUN cd /root/era_5g_object_detection_distributed_worker \
-    && pip3 install -r requirement.txt \
+    && pip3 install -r requirements.txt \
     && pip3 install . 
 
 RUN useradd  --create-home --shell /bin/bash newuser

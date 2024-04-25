@@ -36,7 +36,8 @@ def worker_setup(**kwargs):
 @app.task(name='era-5g-reference-netapp-distributed')
 def detector_task(data):
     metadata, image = data
-    # process the received image
-    detections = detector_worker.process_image(image)
-    results = (metadata, detections)
-    return results
+    # Process the received image
+    results = detector_worker.process_image(image)
+    detections = detector_worker.prepare_detections_for_publishing(results)
+    ret = (metadata, detections)
+    return ret
