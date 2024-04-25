@@ -1,5 +1,8 @@
 FROM but5gera/netapp_base_mmcv_cpu:0.2.0
 
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Prague
+
 COPY python/era_5g_object_detection_common /root/era_5g_object_detection_common
 
 RUN cd /root/era_5g_object_detection_common \
@@ -12,11 +15,15 @@ RUN cd /root/era_5g_object_detection_distributed_worker \
     && pip3 install -r requirements.txt \
     && pip3 install . 
 
+# Celery refuses to run worker as root when the worker accepts messages serialized with pickle
 RUN useradd  --create-home --shell /bin/bash newuser
 
 COPY docker/era_5g_object_detection_distributed/start_worker.sh /home/newuser/start.sh
 
 RUN chown newuser /home/newuser/start.sh
+
+RUN mv /root/mmdetection/ /home/newuser/mmdetection/ \
+	&& chown -R newuser /home/newuser/mmdetection 
 
 USER newuser
 WORKDIR /home/newuser
@@ -31,4 +38,3 @@ ENV NETAPP_TORCH_DEVICE=cpu
 ENV NETAPP_MMDET_PATH=/home/newuser/mmdetection/
 
 
-	
